@@ -1,0 +1,28 @@
+{
+  "name": "likeness",
+  "version": "0.0.1",
+  "description": "Simple JSON schema validation and transformation engine.",
+  "keywords": [
+    "mongodb",
+    "local",
+    "memory",
+    "in-memory",
+    "orm",
+    "model"
+  ],
+  "homepage": "https://github.com/shenanigans/likeness",
+  "bugs": "https://github.com/shenanigans/likeness/issues",
+  "license": "MIT",
+  "author": "Kevin \"Schmidty\" Smith",
+  "main": "likeness.js",
+  "repository": "https://github.com/shenanigans/likeness.git",
+  "dependencies": {
+    "async": "^0.9.0"
+  },
+  "devDependencies": {
+    "mocha": "^2.0.1"
+  },
+  "scripts": {
+    "test": "./node_modules/.bin/mocha"
+  }
+}
