@@ -3,18 +3,15 @@ likeness
 
 Simple JSON schema validation and transformations.
 
-*transformations not yet implemented*
+**validation** is ready and has test coverage.
+**transformation** is being implemented.
 
 
-Installation
-------------
+Installation and Use
+--------------------
 ```shell
 $ npm install likeness
 ```
-
-
-Usage
------
 ```javascript
 var Likeness = require ('likeness');
 var schema = new Likeness ({
@@ -37,3 +34,8 @@ var schema = new Likeness ({
     }
 });
 ```
+
+
+
+LICENSE
+-------
