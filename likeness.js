@@ -6,25 +6,6 @@
 
 var async = require ('async');
 
-/**     @class ValidationError
-    Reporting format for validation failures. Not, in fact, a subclass of Error.
-@member/String error
-    A String code from a handful of select values:
-     * `missing` A key was missing, or a `.exists` constraint failed.
-     * `type` Specific to the `.type` constraint.
-     * `limit` Failues of `.min` and `.max` constraints.
-     * `format` Failures of `.length`, `.value`, `.match`, `sequence`, and `.all`.
-     * `illegal` Unexpected extra keys, keys rejected by `.key`.
-     * `sync` An asynchronous `.eval` constraint could not be processed.
-     * `transform` An error which occured during a [transform](#transform) call.
-@member/String msg
-@member constraint
-@member value
-@member/.ValidationError source
-    If the source document fails validation during a [transform](#transform) call, the relevant
-    [ValidationError](.ValidationError) will be provided here.
-*/
-
 /**     @class Configuration
 
 @String #type
@@ -82,24 +63,20 @@ var async = require ('async');
     @super Configuration
 */
 
-/**     @property/Function getTypeStr
-    Get a useful type string for various javascript types.
-*/
-var typeGetter = ({}).toString;
-try { Buffer; } catch (err) { Buffer = function(){}; }
-function getTypeStr (obj) {
-    var tstr = typeGetter.apply(obj).slice(8,-1).toLowerCase();
-    if (tstr == 'object')
-        if (obj instanceof Buffer) return 'buffer';
-        else return tstr;
-    if (tstr == 'text') return 'textnode';
-    if (tstr == 'comment') return 'commentnode';
-    if (tstr.slice(0,4) == 'html') return 'element';
-    return tstr;
-}
+var getTypeStr = require ('./lib/GetTypeStr');
 
 var SPECIAL_KEYS = {
-    '.type':            'type',
+    '.type':            'type',         // restrict document type
+    '.adHoc':           'adHoc',        // accept unknown keys
+    '.arbitrary':       'adHoc',
+    '.tolerant':        'tolerant',     // ignore unknown keys
+    '.optional':        'optional',     // accept `undefined` as a valid document
+    '.optional':        'optional',
+    '.optional':        'optional',
+    '.key':             'keyTest',      // for matching arbitrary keys
+    '.keyTest':         'keyTest',
+    '.children':        'children',     // optional - this is the escape strategy for special keys
+    '.child':           'children',
     '.min':             'min',          // min/max value, length, etc.
     '.max':             'max',
     '.exclusiveMin':    'exclusiveMin',
@@ -127,15 +104,6 @@ var SPECIAL_KEYS = {
     '.keys':            'length',
     '.vals':            'length',
     '.values':          'length',
-    '.key':             'keyTest',      // for matching arbitrary keys
-    '.keyTest':         'keyTest',
-    '.optional':        'optional',     // accept `undefined` as a valid document
-    '.optional':        'optional',
-    '.optional':        'optional',
-    '.adHoc':           'adHoc',
-    '.arbitrary':       'adHoc',
-    '.children':        'children',     // optional - this is the escape strategy for special keys
-    '.child':           'children',
     '.match':           'match',        // regex value matching (only available for .type="string")
     '.regex':           'match',
     '.regexp':          'match',
@@ -151,24 +119,37 @@ var SPECIAL_KEYS = {
     '.forEvery':        'all',
     '.value':           'value',        // exact value match
     '.sequence':        'sequence',     // an Array of schema which must match sequentially
-    '.unit':            'doNotBreak',   // disqualifies a schema node from #transform(partial
     //============================= Transforms!
     //      These don't evaluate documents, they transform valid documents
+    '.cast':            'cast',         // convert strings to match .type
     '.set':             'setVal',       // hard overwrite
-    '.insert':          'insert',       // insert
-    '.insertAt':        'arrInsert',    // Array insert - [ [ i, val ], ...]
-    '.append':          'arrAppend',    // append to Array
-    '.prepend':         'arrPrepend',   // prepend to Array
+    '.inject':          'inject',       // insert hard data into input and overwrite target
+    '.insert':          'insert',       // insert input into target at Array/String position
+    '.append':          'append',       // append input to target Array/String
+    '.prepend':         'prepend',      // prepend input to target Array/String
     '.normal':          'normal',       // normalize Numbers
     '.normalize':       'normal',
     '.normalization':   'normal',
+    '.add':             'total',        // add input number to target
+    '.total':           'total',
+    '.subtract':        'subtract',     // subtract input number from target
+    '.multiply':        'multiply',     // multiply target number by input
+    '.divide':          'divide',       // divide target number by input
+    '.modulate':        'modFilter',    // modulo input before overwriting target
+    '.modFilter':       'modFilter',
+    '.inverse':         'inverse',      // multiply by -1 (works for booleans)
+    '.invert':          'inverse',
+    '.reciprocal':      'reciprocal',   // 1/x
     '.split':           'split',        // regex split
     '.group':           'group',        // regex exec -> Array of groups
+    '.case':            'case',         // transform string capitalization
     '.transform':       'transform',
     '.function':        'transform',
     '.filter':          'filter',       // pass key/index and value to function for selective drop
     '.rename':          'rename',       // rename a key
-    '.drop':            'drop'          // drop a key
+    '.drop':            'drop',         // drop a key
+    '.clip':            'clip',         // restrict max length
+    '.slice':           'slice'         // retain specific subsection
 };
 
 
@@ -233,20 +214,31 @@ var Likeness = function (schema, path) {
         this.constraints.type = 'object'; // only Objects have children
         if (this.children.hasOwnProperty (key))
             throw new Error ('duplicate child at ' + path ? path + '.' + key : key);
-        else
-            this.children[key] = new Likeness (
+        else {
+            var newChild = new Likeness (
                 schema[key],
                 path ? path + '.' + key : key
             );
+            if (newChild.isAsync)
+                this.isAsync = true;
+            this.children[key] = newChild;
+        }
     }
 
+    // if we have an async function somewhere, mark ourselves async
+    if (this.constraints.async)
+        this.isAsync = true;
+
     // convert special constriants to Likeness instances
-    if (this.constraints.all)
+    if (this.constraints.all) {
         this.constraints.all = new Likeness (
             this.constraints.all,
             this.path ? this.path + '.*' : '*'
         );
-    if (this.constraints.exists)
+        if (this.constraints.all.isAsync)
+            this.isAsync = true;
+    }
+    if (this.constraints.exists) {
         if (getTypeStr (this.constraints.exists) == 'array')
             for (var i in this.constraints.exists)
                 this.constraints.exists[i] = new Likeness (
@@ -258,17 +250,36 @@ var Likeness = function (schema, path) {
                 this.constraints.exists,
                 this.path ? this.path + '.*' : '*'
             ) ];
+
+        for (var i in this.constraints.exists)
+            if (this.constraints.exists[i].isAsync)
+                this.isAsync = true;
+    }
     if (this.constraints.sequence)
-        for (var i in this.constraints.sequence)
-            this.constraints.sequence[i] = new Likeness (
+        for (var i in this.constraints.sequence) {
+            var newChild = new Likeness (
                 this.constraints.sequence[i],
                 this.path ? this.path + '.'+i : String(i)
             );
-    if (this.constraints.keyTest)
-        this.constraints.keyTest = new Likeness (
+            if (newChild.isAsync)
+                this.isAsync = true;
+            this.constraints.sequence[i] = newChild;
+        }
+    if (this.constraints.keyTest) {
+        var newChild = new Likeness (
             this.constraints.keyTest,
             this.path ? this.path + '.___KEYS___' : '___KEYS___'
         );
+        if (newChild.isAsync)
+            this.isAsync = true;
+        this.constraints.keyTest = newChild;
+    }
+    if (this.constraints.drop) {
+        var drop = {};
+        for (var i in this.constraints.drop)
+            drop[this.constraints.drop[i]] = true;
+        this.constraints.drop = drop;
+    }
 };
 
 
@@ -284,4 +295,5 @@ Likeness.prototype.transform = require ('./lib/Transform');
 
 Likeness.getTypeStr = getTypeStr;
 module.exports = Likeness;
+module.exports.errors = require ('./lib/errors');
 // module.helpers = require ('./helpers');
