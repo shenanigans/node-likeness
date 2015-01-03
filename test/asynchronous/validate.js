@@ -4,9 +4,12 @@ var assert = require ('assert');
 
 function testValidate (doc, schema, shouldPass, callback) {
     schema = new Likeness (schema);
+    var sync = true;
 
-    if (callback)
-        return schema.validate (doc, function (err) {
+    if (callback) {
+        schema.validate (doc, function (err) {
+            if (sync)
+                return callback (new Error ('callback fired synchronously'));
             if (err)
                 if (shouldPass)
                     return callback (new Error ('failed to pass the document'));
@@ -15,6 +18,9 @@ function testValidate (doc, schema, shouldPass, callback) {
                 return callback();
             callback (new Error ('failed to reject the document'));
         });
+        sync = false;
+        return;
+    }
 
     try {
         schema.validate (doc);

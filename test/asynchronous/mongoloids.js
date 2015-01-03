@@ -57,7 +57,7 @@ before (function (done) {
             }
 
             collection = col;
-            collection.remove ({}, { w:1 }, function (err) {
+            collection.remove ({}, { w:1, multi:true }, function (err) {
                 if (err) {
                     console.log ('could not clear MongoDB test collection');
                     return process.exit (1);
@@ -69,34 +69,119 @@ before (function (done) {
 });
 
 var nextID = 1;
-function getNextID(){ return 'tempID_async_'+nextID++; }
+function getNextID(){ return 'tempID_sync_'+nextID++; }
 
-function testMongoloid (schema, document, fragment, callback) {
+function testMongoloid (schema, document, fragment, callback, empty) {
     var _id = document._id = getNextID();
     collection.insert (document, { w:1 }, function (err) {
         if (err) return callback (err);
         schema = new Likeness (schema);
         var mongoloid = {};
-        schema.transform (fragment, document, mongoloid);
-        collection.update ({ _id:_id }, mongoloid, function (err) {
-            if (err) return callback (err);
-            collection.findOne ({ _id:_id }, function (err, mongoResult) {
+        var sync = true;
+        try {
+            schema.transform (fragment, document, mongoloid, function (err, setValue) {
                 if (err) return callback (err);
-                if (!deepCompare (document, mongoResult))
-                    return callback (new Error (
-                        'mongoloid result did not match - '+JSON.stringify (mongoResult)
+                console.log ('mongoloid', JSON.stringify (mongoloid));
+                if (sync)
+                    return callback (new Error ('callback fired synchronously'));
+                if (!Object.keys (mongoloid).length) {
+                    if (!empty) return callback (new Error (
+                        'empty mongoloid update'
                     ));
-
-                callback();
+                    return callback();
+                }
+                collection.update ({ _id:_id }, mongoloid, function (err) {
+                    if (err) return callback (err);
+                    collection.findOne ({ _id:_id }, function (err, mongoResult) {
+                        if (err) return callback (err);
+                        if (!deepCompare (document, mongoResult))
+                            return callback (new Error (
+                                'mongoloid result did not match - '+JSON.stringify (mongoResult)
+                            ));
+                        callback();
+                    });
+                });
             });
-        });
+        } catch (err) {
+            return callback (new Error ('threw synchronous error - ' + JSON.stringify (err)));
+        }
+        sync = false;
     });
 }
 
 describe ("mongoloid updates", function(){
+    this.timeout (25);
 
     describe ("$set", function(){
-        it ("sets Strings on shallow paths to the database", function (done) {
+        it ("sets Strings on shallow paths with named children", function (done) {
+            testMongoloid (
+                {    // schema
+                    able:   { '.type':'string' },
+                    baker:  { '.type':'string' }
+                },
+                {    // document
+
+                },
+                {    // fragment
+                    able:   'foo',
+                    baker:  'bar'
+                },
+                done
+            );
+        });
+
+        it ("sets Strings on shallow paths with named children and .all", function (done) {
+            testMongoloid (
+                {    // schema
+                    able:   { '.type':'string' },
+                    baker:  { '.type':'string' },
+                    '.all': { '.type':'string', '.inject':[ [ 1, 'silver' ] ] }
+                },
+                {    // document
+
+                },
+                {    // fragment
+                    able:   'foo',
+                    baker:  'bar'
+                },
+                done
+            );
+        });
+
+        it ("sets Strings on shallow paths with .arbitrary", function (done) {
+            testMongoloid (
+                {    // schema
+                    '.arbitrary':   true
+                },
+                {    // document
+
+                },
+                {    // fragment
+                    able:   'foo',
+                    baker:  'bar'
+                },
+                done
+            );
+        });
+
+        it ("sets Strings on shallow paths with .arbitrary and .all", function (done) {
+            testMongoloid (
+                {    // schema
+                    '.arbitrary':   true,
+                    '.all':         { '.type':'string' }
+                },
+                {    // document
+
+                },
+                {    // fragment
+                    able:   'foo',
+                    baker:  'bar'
+                },
+                done
+            );
+        });
+
+        it ("sets Strings on shallow paths with .arbitrary and .all", function (done) {
             testMongoloid (
                 {    // schema
                     '.arbitrary':   true
@@ -172,7 +257,7 @@ describe ("mongoloid updates", function(){
             );
         });
 
-        it ("sets plain Object structures", function (done) {
+        it ("does not set plain Object structures", function (done) {
             testMongoloid (
                 {    // schema
                     '.arbitrary':   true
@@ -227,7 +312,8 @@ describe ("mongoloid updates", function(){
                         }
                     }
                 },
-                done
+                done,
+                true // should produce an empty mongoloid
             );
         });
 
@@ -249,47 +335,238 @@ describe ("mongoloid updates", function(){
     });
 
     describe ("$math", function(){
+        it ("adds", function (done) {
+            testMongoloid (
+                {    // schema
+                    able:   { '.type':'number', '.add':true }
+                },
+                {    // document
+                    able:   10
+                },
+                {    // fragment
+                    able:   5
+                },
+                done
+            );
+        });
 
-        it ("adds");
+        it ("subtracts", function (done) {
+            testMongoloid (
+                {    // schema
+                    able:   { '.type':'number', '.subtract':true }
+                },
+                {    // document
+                    able:   10
+                },
+                {    // fragment
+                    able:   5
+                },
+                done
+            );
+        });
 
-        it ("subtracts");
+        it ("multiplies", function (done) {
+            testMongoloid (
+                {    // schema
+                    able:   { '.type':'number', '.multiply':true }
+                },
+                {    // document
+                    able:   10
+                },
+                {    // fragment
+                    able:   5
+                },
+                done
+            );
+        });
 
-        it ("multiplies");
-
-        it ("divides");
+        it ("divides", function (done) {
+            testMongoloid (
+                {    // schema
+                    able:   { '.type':'number', '.divide':true }
+                },
+                {    // document
+                    able:   10
+                },
+                {    // fragment
+                    able:   5
+                },
+                done
+            );
+        });
 
     });
 
     describe ("$push", function(){
+        it ("appends an element", function (done) {
+            testMongoloid (
+                {    // schema
+                    able:       {
+                        '.type':    'array',
+                        '.append':  true
+                    }
+                },
+                {    // document
+                    able:       [ 0, 1, 2, 3 ]
+                },
+                {    // fragment
+                    able:       [ 9 ]
+                },
+                done
+            );
+        });
 
-        it ("appends an element");
+        it ("appends multiple elements", function (done) {
+            testMongoloid (
+                {    // schema
+                    able:       {
+                        '.type':    'array',
+                        '.append':  true
+                    }
+                },
+                {    // document
+                    able:       [ 0, 1, 2, 3 ]
+                },
+                {    // fragment
+                    able:       [ 9, 9, 9 ]
+                },
+                done
+            );
+        });
 
-        it ("appends multiple elements");
+        it ("prepends an element", function (done) {
+            testMongoloid (
+                {    // schema
+                    able:       {
+                        '.type':    'array',
+                        '.prepend': true
+                    }
+                },
+                {    // document
+                    able:       [ 0, 1, 2, 3 ]
+                },
+                {    // fragment
+                    able:       [ 9 ]
+                },
+                done
+            );
+        });
 
-        it ("prepends an element");
+        it ("prepends multiple elements", function (done) {
+            testMongoloid (
+                {    // schema
+                    able:       {
+                        '.type':    'array',
+                        '.prepend': true
+                    }
+                },
+                {    // document
+                    able:       [ 0, 1, 2, 3 ]
+                },
+                {    // fragment
+                    able:       [ 9, 9, 9 ]
+                },
+                done
+            );
+        });
 
-        it ("prepends multiple elements");
+        it ("inserts an element at an index", function (done) {
+            testMongoloid (
+                {    // schema
+                    able:       {
+                        '.type':    'array',
+                        '.insert':  2
+                    }
+                },
+                {    // document
+                    able:       [ 0, 1, 2, 3 ]
+                },
+                {    // fragment
+                    able:       [ 9 ]
+                },
+                done
+            );
+        });
 
-        it ("inserts an element at an index");
-
-        it ("inserts multiple elements at an index");
-
+        it ("inserts multiple elements at an index", function (done) {
+            testMongoloid (
+                {    // schema
+                    able:       {
+                        '.type':    'array',
+                        '.insert':  2
+                    }
+                },
+                {    // document
+                    able:       [ 0, 1, 2, 3 ]
+                },
+                {    // fragment
+                    able:       [ 9, 9, 9 ]
+                },
+                done
+            );
+        });
     });
 
     describe ("$sort", function(){
 
-
-
     });
 
     describe ("$slice", function(){
+        it ("reserves the first elements of an Array", function (done) {
+            testMongoloid (
+                {    // schema
+                    able:       {
+                        '.type':    'array',
+                        '.append':  true,
+                        '.clip':   7
+                    }
+                },
+                {    // document
+                    able:       [ 0, 1, 2, 3, 4, 5 ]
+                },
+                {    // fragment
+                    able:       [ 9, 9, 9, 9 ]
+                },
+                done
+            );
+        });
 
-        it ("reserves the first elements of an Array");
+        it ("reserves the last elements of an Array", function (done) {
+            testMongoloid (
+                {    // schema
+                    able:       {
+                        '.type':    'array',
+                        '.append':  true,
+                        '.clip':   -7
+                    }
+                },
+                {    // document
+                    able:       [ 0, 1, 2, 3, 4, 5 ]
+                },
+                {    // fragment
+                    able:       [ 9, 9, 9, 9 ]
+                },
+                done
+            );
+        });
 
-        it ("reserves the last elements of an Array");
-
-        it ("reserves a middle slice of elements from an Array");
-
+        it ("reserves a middle slice of elements from an Array", function (done) {
+            testMongoloid (
+                {    // schema
+                    able:       {
+                        '.type':    'array',
+                        '.append':  true,
+                        '.slice':   [ 3, 9 ]
+                    }
+                },
+                {    // document
+                    able:       [ 0, 1, 2, 3, 4, 5 ]
+                },
+                {    // fragment
+                    able:       [ 9, 9, 9, 9 ]
+                },
+                done
+            );
+        });
     });
-
 });

@@ -38,7 +38,7 @@ function deepCompare (able, baker) {
 
 function testTransform (schema, source, target, goal) {
     schema = new Likeness (schema);
-
+    var sourceStr = JSON.stringify (source);
     try {
         schema.transform (source, target);
     } catch (err) {
@@ -48,11 +48,13 @@ function testTransform (schema, source, target, goal) {
     }
     if (!deepCompare (target, goal))
         throw new Error ('goal did not match - '+JSON.stringify (target));
+    if (sourceStr != JSON.stringify (source))
+        throw new Error ('transform damaged the source object');
 }
 
 function testTransformFailure (schema, source, target, error) {
     schema = new Likeness (schema);
-
+    var sourceStr = JSON.stringify (source);
     try {
         schema.transform (source, target);
     } catch (err) {
@@ -70,12 +72,15 @@ function testTransformFailure (schema, source, target, error) {
                 }
         }
 
+        if (sourceStr != JSON.stringify (source))
+            throw new Error ('transform damaged the source object');
+
         return;
     }
     throw new Error ('transform completed illegally');
 }
 
-describe ("transform", function(){
+describe ("#transform", function(){
 
     describe (".arbitrary", function(){
         it ('blindly duplicates an object with an arbitrary schema', function(){

@@ -5,15 +5,21 @@ var assert = require ('assert');
 function testReport (doc, schema, shouldPass, callback) {
     schema = new Likeness (schema);
     var errors = [];
+    var sync = true;
 
-    if (callback)
-        return schema.report (doc, errors, function(){
+    if (callback) {
+        schema.report (doc, errors, function(){
+            if (sync)
+                return callback (new Error ('callback fired synchronously'));
             if (shouldPass && errors.length)
                 return callback (new Error ('failed to pass the document'));
             if (!shouldPass && !errors.length)
                 return callback (new Error ('failed to reject the document'));
             callback();
         });
+        sync = false;
+        return;
+    }
 
     schema.report (doc, errors);
     for (var i in errors)

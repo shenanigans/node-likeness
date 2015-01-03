@@ -39,27 +39,41 @@ function deepCompare (able, baker) {
 
 function testTransform (schema, source, target, goal, callback) {
     schema = new Likeness (schema);
+    var sourceStr = JSON.stringify (source);
+    var sync = true;
     try {
-        return schema.transform (source, target, function (err, val) {
+        schema.transform (source, target, function (err, val) {
             if (err)
                 return callback (new Error (JSON.stringify (err)));
+            if (sync)
+                return callback (new Error ('callback fired synchronously'));
+            if (sourceStr != JSON.stringify (source))
+                return callback (new Error ('transform damaged the source object'));
             if (!deepCompare (target, goal))
                 return callback (new Error ('goal did not match - '+JSON.stringify (target)));
             callback();
         });
     } catch (err) {
-        if (err instanceof TransformError)
-            return callback (new Error (JSON.stringify (err)));
-        return callback (err);
+        return callback (new Error ('Error thrown synchronously - ' + JSON.stringify (err)));
     }
+    sync = false;
 }
 
 function testTransformFailure (schema, source, target, error, callback) {
     schema = new Likeness (schema);
+    var sourceStr = JSON.stringify (source);
+    var sync = true;
     try {
-        return schema.transform (source, target, function (err, val) {
-            if (err) {
-                if (error) for (var key in error)
+        schema.transform (source, target, function (err, val) {
+            if (sync)
+                return callback (new Error ('callback fired synchronously'));
+            if (sourceStr != JSON.stringify (source))
+                return callback (new Error ('transform damaged the source object'));
+            if (!err)
+                return callback (new Error ('transform completed erroneously'));
+            if (error)
+                // shallow compare own properties on err and error
+                for (var key in error)
                     if (!Object.hasOwnProperty.call (err, key) || err[key] !== error[key])
                         return callback (new Error (
                             'thrown error property "'
@@ -69,17 +83,15 @@ function testTransformFailure (schema, source, target, error, callback) {
                           + ' != '
                           + error[key]
                         ));
-                return callback();
-            }
-            callback (new Error ('transform completed erroneously'));
+            return callback();
         });
     } catch (err) {
-        return callback (new Error (JSON.stringify (err)));
+        return callback (new Error ('Error thrown synchronously - ' + JSON.stringify (err)));
     }
+    sync = false;
 }
 
-describe ("transform", function(){
-
+describe ("#transform", function(){
     describe (".arbitrary", function(){
         it ('blindly duplicates an object with an arbitrary schema', function (done) {
             testTransform (
@@ -112,6 +124,7 @@ describe ("transform", function(){
                 done
             );
         });
+
         it ('merges into the target correctly', function (done) {
             testTransform (
                 { // schema
@@ -146,6 +159,7 @@ describe ("transform", function(){
                 done
             );
         });
+
         it ('applies .all transforms to every child', function (done) {
             testTransform (
                 { // schema
@@ -173,6 +187,7 @@ describe ("transform", function(){
                 done
             );
         });
+
         it ('refuses to duplicate with empty schema', function (done) {
             testTransformFailure (
                 { // schema
@@ -372,7 +387,7 @@ describe ("transform", function(){
             });
         });
 
-        describe ("Object min/max/length", function(){
+        describe ("Object max/length", function(){
             it ("fails when transform exceeds max length", function (done) {
                 testTransformFailure (
                     {    // schema
@@ -393,6 +408,7 @@ describe ("transform", function(){
                     done
                 );
             });
+
             it ("completes when transform does not reach min length", function (done) {
                 testTransform (
                     {    // schema
@@ -414,6 +430,7 @@ describe ("transform", function(){
                     done
                 );
             });
+
             it ("completes when transform violates exact length", function (done) {
                 testTransform (
                     {    // schema
@@ -437,7 +454,7 @@ describe ("transform", function(){
             });
         });
 
-        describe ("Array min/max/length", function(){
+        describe ("Array max/length", function(){
             it ("fails when transform exceeds max length", function (done) {
                 testTransformFailure (
                     {    // schema
@@ -455,6 +472,7 @@ describe ("transform", function(){
                     done
                 );
             });
+
             it ("completes when transform does not reach min length", function (done) {
                 testTransform (
                     {    // schema
@@ -472,6 +490,7 @@ describe ("transform", function(){
                     done
                 );
             });
+
             it ("completes when transform violates exact length", function (done) {
                 testTransform (
                     {    // schema
@@ -509,6 +528,7 @@ describe ("transform", function(){
                     done
                 );
             });
+
             it ("fails when transform does not reach min length", function (done) {
                 testTransformFailure (
                     {    // schema
@@ -526,6 +546,7 @@ describe ("transform", function(){
                     done
                 );
             });
+
             it ("fails when transform violates exact length", function (done) {
                 testTransformFailure (
                     {    // schema
@@ -563,6 +584,7 @@ describe ("transform", function(){
                     done
                 );
             });
+
             it ("fails when transform is equal to exclusive min", function (done) {
                 testTransformFailure (
                     {    // schema
@@ -580,6 +602,7 @@ describe ("transform", function(){
                     done
                 );
             });
+
             it ("fails when transform is above max", function (done) {
                 testTransformFailure (
                     {    // schema
@@ -597,6 +620,7 @@ describe ("transform", function(){
                     done
                 );
             });
+
             it ("fails when transform is below min", function (done) {
                 testTransformFailure (
                     {    // schema
@@ -669,6 +693,7 @@ describe ("transform", function(){
                 }
             ], done);
         });
+
         it ("rejects an Array transform that fails an .all constraint", function (done) {
             async.parallel ([
                 function (next) {
@@ -727,30 +752,7 @@ describe ("transform", function(){
                     done
                 );
             });
-            it ("rejects an async function transform called synchronously", function (done) {
-                testTransformFailure (
-                    {    // schema
-                        able:   {
-                            '.type':        'string',
-                            '.async':       true,
-                            '.transform':   function (value, callback) {
-                                callback (
-                                    undefined,
-                                    '<' + value + ' class="foo"></' + value + '>\n'
-                                );
-                            }
-                        }
-                    },
-                    {    // source
-                        able:   'div'
-                    },
-                    { }, // target
-                    {    // error
-                        code:   'SYNC'
-                    },
-                    done
-                );
-            });
+
             it ("wraps an Error thrown by the function transform", function (done) {
                 testTransformFailure (
                     {    // schema
@@ -848,6 +850,7 @@ describe ("transform", function(){
                         done
                     );
                 });
+
                 it ("adds to missing target", function (done) {
                     testTransform (
                         {    // schema
@@ -865,6 +868,7 @@ describe ("transform", function(){
                         done
                     );
                 });
+
                 it ("subtracts", function (done) {
                     testTransform (
                         {    // schema
@@ -886,6 +890,7 @@ describe ("transform", function(){
                         done
                     );
                 });
+
                 it ("subtracts from missing target", function (done) {
                     testTransform (
                         {    // schema
@@ -903,6 +908,7 @@ describe ("transform", function(){
                         done
                     );
                 });
+
                 it ("multiplies", function (done) {
                     testTransform (
                         {    // schema
@@ -924,6 +930,7 @@ describe ("transform", function(){
                         done
                     );
                 });
+
                 it ("multiplies with missing target", function (done) {
                     testTransform (
                         {    // schema
@@ -941,6 +948,7 @@ describe ("transform", function(){
                         done
                     );
                 });
+
                 it ("divides target by input", function (done) {
                     testTransform (
                         {    // schema
@@ -962,6 +970,7 @@ describe ("transform", function(){
                         done
                     );
                 });
+
                 it ("divides missing target by input", function (done) {
                     testTransform (
                         {    // schema
@@ -1080,6 +1089,7 @@ describe ("transform", function(){
                         done
                     );
                 });
+
                 it ("rejects when post-transform Numbers are out of bounds", function (done) {
                     async.parallel ([
                         function (next) {
@@ -1458,6 +1468,7 @@ describe ("transform", function(){
                         done
                     );
                 });
+
                 it ("splits using a grouping regular expression", function (done) {
                     testTransform (
                         {    // schema
@@ -1723,6 +1734,7 @@ describe ("transform", function(){
                         done
                     );
                 });
+
                 it ("fails when post-transform String is out of bounds", function (done) {
                     testTransformFailure (
                         {    // schema
@@ -1770,6 +1782,7 @@ describe ("transform", function(){
                         done
                     );
                 });
+
                 it ("fails when post-transform String does not match a regex filter", function (done) {
                     testTransformFailure (
                         {    // schema
@@ -2088,6 +2101,7 @@ describe ("transform", function(){
                         done
                     );
                 });
+
                 it ("processes the input Object as the inserted child key", function (done) {
                     testTransform (
                         {    // schema
@@ -2116,6 +2130,7 @@ describe ("transform", function(){
                         done
                     );
                 });
+
                 it ("injects before insertion", function (done) {
                     testTransform (
                         {    // schema
@@ -2171,6 +2186,7 @@ describe ("transform", function(){
                         done
                     );
                 });
+
                 it ("clobbers keys in the source", function (done) {
                     testTransform (
                         {    // schema
@@ -2191,6 +2207,7 @@ describe ("transform", function(){
                         done
                     );
                 });
+
                 it ("processes keys with their new names", function (done) {
                     testTransform (
                         {    // schema
@@ -2258,6 +2275,7 @@ describe ("transform", function(){
                         done
                     );
                 });
+
                 it ("keeps only the oldest keys from the target document", function (done) {
                     testTransform (
                         {    // schema
@@ -2331,32 +2349,38 @@ describe ("transform", function(){
                 });
 
                 it ("rejects invalid JSON", function (done) {
-                    testTransformFailure (
-                        {    // schema
-                            able:   { '.type':'array', '.cast':true }
+                    async.parallel ([
+                        function (callback) {
+                            testTransformFailure (
+                                {    // schema
+                                    able:   { '.type':'array', '.cast':true }
+                                },
+                                {    // source
+                                    able:   '[ 0, 1, 2, { able:"foo" } ]'
+                                },
+                                { }, // target
+                                {    // error
+                                    code:   'FORMAT'
+                                },
+                                callback
+                            );
                         },
-                        {    // source
-                            able:   '[ 0, 1, 2, { able:"foo" } ]'
-                        },
-                        { }, // target
-                        {    // error
-                            code:   'FORMAT'
-                        },
-                        done
-                    );
-                    testTransformFailure (
-                        {    // schema
-                            able:   { '.type':'array', '.cast':true }
-                        },
-                        {    // source
-                            able:   '{ "able":"foo", "baker":{ "able:9001" }}'
-                        },
-                        { }, // target
-                        {    // error
-                            code:   'FORMAT'
-                        },
-                        done
-                    );
+                        function (callback) {
+                            testTransformFailure (
+                                {    // schema
+                                    able:   { '.type':'array', '.cast':true }
+                                },
+                                {    // source
+                                    able:   '{ "able":"foo", "baker":{ "able:9001" }}'
+                                },
+                                { }, // target
+                                {    // error
+                                    code:   'FORMAT'
+                                },
+                                callback
+                            );
+                        }
+                    ], done);
                 });
             });
 
@@ -2704,7 +2728,6 @@ describe ("transform", function(){
             });
 
             describe ("post-transform .max", function(){
-
                 it ("rejects element counts not within bounds after transform", function (done) {
                     async.parallel ([
                         function (next) {
@@ -2787,7 +2810,6 @@ describe ("transform", function(){
                         }
                     ], done);
                 });
-
             });
         });
     });
