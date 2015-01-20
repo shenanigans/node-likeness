@@ -1,6 +1,6 @@
 {
   "name": "likeness",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Simple JSON schema validation and transformation engine.",
   "keywords": [
     "mongodb",
