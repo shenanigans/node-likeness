@@ -232,8 +232,7 @@ var Likeness = function (schema, path) {
     // convert special constriants to Likeness instances
     if (this.constraints.all) {
         this.constraints.all = new Likeness (
-            this.constraints.all,
-            this.path ? this.path + '.*' : '*'
+            this.constraints.all
         );
         if (this.constraints.all.isAsync)
             this.isAsync = true;
@@ -242,13 +241,11 @@ var Likeness = function (schema, path) {
         if (getTypeStr (this.constraints.exists) == 'array')
             for (var i in this.constraints.exists)
                 this.constraints.exists[i] = new Likeness (
-                    this.constraints.exists[i],
-                    this.path ? this.path + '.*' : '*'
+                    this.constraints.exists[i]
                 );
         else
             this.constraints.exists = [ new Likeness (
-                this.constraints.exists,
-                this.path ? this.path + '.*' : '*'
+                this.constraints.exists
             ) ];
 
         for (var i in this.constraints.exists)

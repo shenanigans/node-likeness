@@ -81,7 +81,7 @@ function testMongoloid (schema, document, fragment, callback, empty) {
         try {
             schema.transform (fragment, document, mongoloid, function (err, setValue) {
                 if (err) return callback (err);
-                console.log ('mongoloid', JSON.stringify (mongoloid));
+
                 if (sync)
                     return callback (new Error ('callback fired synchronously'));
                 if (!Object.keys (mongoloid).length) {
@@ -90,6 +90,9 @@ function testMongoloid (schema, document, fragment, callback, empty) {
                     ));
                     return callback();
                 }
+
+                if (empty)
+                    return callback (new Error ('mongoloid was supposed to be empty'));
                 collection.update ({ _id:_id }, mongoloid, function (err) {
                     if (err) return callback (err);
                     collection.findOne ({ _id:_id }, function (err, mongoResult) {
@@ -110,7 +113,7 @@ function testMongoloid (schema, document, fragment, callback, empty) {
 }
 
 describe ("mongoloid updates", function(){
-    this.timeout (25);
+    this.timeout (150);
 
     describe ("$set", function(){
         it ("sets Strings on shallow paths with named children", function (done) {

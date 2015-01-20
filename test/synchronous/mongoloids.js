@@ -82,7 +82,7 @@ function testMongoloid (schema, document, fragment, callback, empty) {
         } catch (err) {
             callback (err);
         }
-        console.log ('mongoloid', JSON.stringify (mongoloid));
+
         if (!Object.keys (mongoloid).length) {
             if (!empty) return callback (new Error (
                 'empty mongoloid update'
@@ -90,14 +90,19 @@ function testMongoloid (schema, document, fragment, callback, empty) {
             return callback();
         }
 
+        if (empty)
+            return callback (new Error ('mongoloid was supposed to be empty'));
+
         collection.update ({ _id:_id }, mongoloid, function (err) {
             if (err) return callback (err);
             collection.findOne ({ _id:_id }, function (err, mongoResult) {
                 if (err) return callback (err);
-                if (!deepCompare (document, mongoResult))
+                if (!deepCompare (document, mongoResult)) {
+                    console.log (document);
                     return callback (new Error (
                         'mongoloid result did not match - '+JSON.stringify (mongoResult)
                     ));
+                }
 
                 callback();
             });
@@ -106,6 +111,8 @@ function testMongoloid (schema, document, fragment, callback, empty) {
 }
 
 describe ("mongoloid updates", function(){
+    this.timeout (150);
+
     describe ("$set", function(){
         it ("sets Strings on shallow paths with named children", function (done) {
             testMongoloid (
