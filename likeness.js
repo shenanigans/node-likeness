@@ -256,7 +256,7 @@ var Likeness = function (schema, path) {
         for (var i in this.constraints.sequence) {
             var newChild = new Likeness (
                 this.constraints.sequence[i],
-                this.path ? this.path + '.'+i : String(i)
+                this.path ? this.path + '.' + i : String(i)
             );
             if (newChild.isAsync)
                 this.isAsync = true;
@@ -264,8 +264,7 @@ var Likeness = function (schema, path) {
         }
     if (this.constraints.keyTest) {
         var newChild = new Likeness (
-            this.constraints.keyTest,
-            this.path ? this.path + '.___KEYS___' : '___KEYS___'
+            this.constraints.keyTest
         );
         if (newChild.isAsync)
             this.isAsync = true;
