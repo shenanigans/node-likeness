@@ -21,7 +21,7 @@ var isValid = schema.validate ({ name:'schema information document' });
 
 Basic Usage
 -----------
-###Validation
+###Validations
 ```javascript
 var Likeness = require ('likeness');
 var testHuman = {
@@ -39,6 +39,11 @@ var adminCheckSchema = new Likness ({
     tags:   { ".exists":{ ".value":"admin" } }
 });
 assert (adminCheckSchema.validate (testHuman));
+```
+
+###Transforms
+```javascript
+
 ```
 
 
@@ -91,6 +96,8 @@ Operator List
  * `.clip`          restrict max length
  * `.slice`         retain specific subsection
 
+###Coming Soon
+ *
 
 LICENSE
 -------
