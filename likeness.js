@@ -91,8 +91,8 @@ var SPECIAL_KEYS = {
     '.keyTest':         'keyTest',
     '.children':        'children',     // optional - this is the escape strategy for special keys
     '.child':           'children',
-    '.matchChildren':   '.matchChildren',   // children matched by regex rather than exact name
-    '.matchChild':      '.matchChildren',
+    '.matchChildren':   'matchChildren',   // children matched by regex rather than exact name
+    '.matchChild':      'matchChildren',
     '.min':             'min',          // min/max value, length, etc.
     '.max':             'max',
     '.exclusiveMin':    'exclusiveMin',
@@ -322,6 +322,18 @@ var Likeness = function (schema, path) {
         for (var i in this.constraints.drop)
             drop[this.constraints.drop[i]] = true;
         this.constraints.drop = drop;
+    }
+
+    if (this.constraints.matchChildren) {
+        var newMatchers = [];
+        for (var pattern in this.constraints.matchChildren) {
+            var subschema = new Likeness (this.constraints.matchChildren[pattern]);
+            subschema.pattern = new RegExp (pattern);
+            if (subschema.isAsync)
+                this.isAsync = true;
+            newMatchers.push (subschema);
+        }
+        this.constraints.matchChildren = newMatchers;
     }
 };
 

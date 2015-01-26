@@ -1,6 +1,7 @@
 
 var Likeness = require ('../../Likeness');
 var assert = require ('assert');
+var async = require ('async');
 
 function testValidate (doc, schema, shouldPass, callback) {
     schema = new Likeness (schema);
@@ -11,9 +12,10 @@ function testValidate (doc, schema, shouldPass, callback) {
             if (sync)
                 return callback (new Error ('callback fired synchronously'));
             if (err)
-                if (shouldPass)
+                if (shouldPass) {
+                    console.log (err);
                     return callback (new Error ('failed to pass the document'));
-                else return callback();
+                } else return callback();
             if (shouldPass)
                 return callback();
             callback (new Error ('failed to reject the document'));
@@ -271,6 +273,134 @@ describe ("validate", function(){
 
             it ("validates the document when .unique is not satisfied");
 
+            it ("validates .matchChildren", function (done) {
+                testValidate (
+                    {
+                        able:       "foo",
+                        baker:      "foo",
+                        charlie:    "foo",
+                        dog:        "foo",
+                        easy:       "foo"
+                    },
+                    {
+                        '.matchChildren':   {
+                            e:                  { '.type':'string', '.value':"foo" }
+                        },
+                        dog:                { '.type':'string', '.value':"foo" }
+                    },
+                    true,
+                    done
+                );
+            });
+
+            it ("rejects .matchChildren", function (done) {
+                testValidate (
+                    {
+                        able:       "foo",
+                        baker:      "foo",
+                        charlie:    "bar",
+                        dog:        "bar",
+                        easy:       "foo"
+                    },
+                    {
+                        '.matchChildren':   {
+                            e:                  { '.type':'string', '.value':"foo" }
+                        },
+                        dog:                { '.type':'string', '.value':"bar" }
+                    },
+                    false,
+                    done
+                );
+            });
+
+            it ("rejects .matchChildren and one illegal child", function (done) {
+                testValidate (
+                    {
+                        able:       "foo",
+                        baker:      "foo",
+                        charlie:    "foo",
+                        dog:        "foo",
+                        easy:       "foo"
+                    },
+                    {
+                        '.matchChildren':   {
+                            e:                  { '.type':'string', '.value':"foo" }
+                        }
+                    },
+                    false,
+                    done
+                );
+            });
+
+            it ("validates with .extra", function (done) {
+                testValidate (
+                    {
+                        able:       "foo",
+                        baker:      "bar"
+                    },
+                    {
+                        able:       { '.type':'string', '.value':"foo" },
+                        '.extra':   { '.type':'string', '.value':"bar" }
+                    },
+                    true,
+                    done
+                );
+            });
+
+            it ("rejects with .extra", function (done) {
+                testValidate (
+                    {
+                        able:       "foo",
+                        baker:      "foo"
+                    },
+                    {
+                        able:       { '.type':'string', '.value':"foo" },
+                        '.extra':   { '.type':'string', '.value':"bar" }
+                    },
+                    false,
+                    done
+                );
+            });
+
+            it ("validates with .matchChildren and .extra", function (done) {
+                testValidate (
+                    {
+                        able:       "foo",
+                        baker:      "foo",
+                        charlie:    "foo",
+                        dog:        "bar",
+                        easy:       "foo"
+                    },
+                    {
+                        '.matchChildren':   {
+                            'e':                { '.type':'string', '.value':"foo" }
+                        },
+                        '.extra':           { '.type':'string', '.value':"bar" }
+                    },
+                    true,
+                    done
+                );
+            });
+
+            it ("rejects matched children and one illegal child", function (done) {
+                testValidate (
+                    {
+                        able:       "foo",
+                        baker:      "foo",
+                        charlie:    "foo",
+                        dog:        "foo",
+                        easy:       "foo"
+                    },
+                    {
+                        '.matchChildren':   {
+                            'e':                { '.type':'string', '.value':"foo" }
+                        }
+                    },
+                    false,
+                    done
+                );
+            });
+
         });
 
         describe ("Arrays", function(){
@@ -320,13 +450,184 @@ describe ("validate", function(){
 
             it ("rejects the document when a complex .sort is not satisfied");
 
-            it ("validates the document when .unique is satisfied");
+            it ("validates the document when .unique is satisfied", function (done) {
+                testValidate (
+                    [ 2, 4, 15, 'fifteen', '15', '2', 'too', 'two', 'TWO', 'Too', 2.2,
+                        { able:10,      baker:'10' },
+                        { able:'10',    baker:10 },
+                        { able:10,      baker:9 },
+                        { able:10,      baker:9,    charlie:9 },
+                        { able:10,      baker:9,    charlie:10 }
+                    ],
+                    { '.type':'array', '.unique':true },
+                    true,
+                    done
+                );
+            });
 
-            it ("validates the document when .unique is not satisfied");
+            it ("rejects the document when .unique is not satisfied", function (done) {
+                async.parallel ([
+                    function (callback) {
+                        testValidate (
+                            [ 2, 4, 15, 'fifteen', 15, '15', '2', 'too', 'two', 'TWO', 'Too', 2.2,
+                                { able:10,      baker:'10' },
+                                { able:'10',    baker:10 },
+                                { able:10,      baker:9 },
+                                { able:10,      baker:9,    charlie:9 },
+                                { able:10,      baker:9,    charlie:10 }
+                            ],
+                            { '.type':'array', '.unique':true },
+                            false,
+                            callback
+                        );
+                    },
+                    function (callback) {
+                        testValidate (
+                            [ 2, 4, 15, 'fifteen', '15', '2', 'too', 'two', 'TWO', 'TWO', 'Too', 2.2,
+                                { able:10,      baker:'10' },
+                                { able:'10',    baker:10 },
+                                { able:10,      baker:9 },
+                                { able:10,      baker:9,    charlie:9 },
+                                { able:10,      baker:9,    charlie:10 }
+                            ],
+                            { '.type':'array', '.unique':true },
+                            false,
+                            callback
+                        );
+                    },
+                    function (callback) {
+                        testValidate (
+                            [ 2, 4, 15, 'fifteen', '15', '2', 'too', 'two', 'TWO', 'Too', 2.2,
+                                { able:10,      baker:'10' },
+                                { able:'10',    baker:10 },
+                                { able:'10',    baker:10 },
+                                { able:10,      baker:9 },
+                                { able:10,      baker:9,    charlie:9 },
+                                { able:10,      baker:9,    charlie:10 }
+                            ],
+                            { '.type':'array', '.unique':true },
+                            false,
+                            callback
+                        );
+                    },
+                    function (callback) {
+                        testValidate (
+                            [ 2, 4, 15, 'fifteen', '15', '2', 'too', 'two', 'TWO', 'Too', 2.2,
+                                { able:10,      baker:'10' },
+                                { able:'10',    baker:10 },
+                                { able:10,      baker:9 },
+                                { able:10,      baker:9,    charlie:9 },
+                                { able:10,      baker:9,    charlie:9 },
+                                { able:10,      baker:9,    charlie:10 }
+                            ],
+                            { '.type':'array', '.unique':'true' },
+                            false,
+                            callback
+                        );
+                    } ], done);
+            });
 
-            it ("validates with a .sequence of schemas");
+            it ("validates with a .sequence of schemas", function (done) {
+                testValidate (
+                    [ 2, 4, 6, 8 ],
+                    { '.type':'array', '.sequence':[
+                        { '.type':'number', '.gt':1, '.lt':3 },
+                        { '.type':'number', '.gt':3, '.lt':5 },
+                        { '.type':'number', '.gt':5, '.lt':7 },
+                        { '.type':'number', '.gt':7, '.lt':9 }
+                    ] },
+                    true,
+                    done
+                );
+            });
 
-            it ("rejects with a .sequence of schemas");
+            it ("rejects with a .sequence of schemas", function (done) {
+                testValidate (
+                    [ 2, 4, 6, 8 ],
+                    { '.type':'array', '.sequence':[
+                        { '.type':'number', '.gt':1, '.lt':3 },
+                        { '.type':'number', '.gt':3, '.lt':5 },
+                        { '.type':'number', '.gt':5, '.lt':7 },
+                        { '.type':'number', '.gt':7, '.lt':8 }
+                    ] },
+                    false,
+                    done
+                );
+            });
+
+            it ("rejects with a .sequence of schemas and unaccounted extras", function (done) {
+                testValidate (
+                    [ 2, 4, 6, 8, 10 ],
+                    { '.type':'array', '.sequence':[
+                        { '.type':'number', '.gt':1, '.lt':3 },
+                        { '.type':'number', '.gt':3, '.lt':5 },
+                        { '.type':'number', '.gt':5, '.lt':7 },
+                        { '.type':'number', '.gt':7, '.lt':9 }
+                    ] },
+                    false,
+                    done
+                );
+            });
+
+            it ("validates with .extra", function (done) {
+                testValidate (
+                    [ 2, 4, 6, 8, 10, 12, 14 ],
+                    {
+                        '.type':    'array',
+                        '.extra':   { '.type':'number', '.gt':1, '.lt':15 }
+                    },
+                    true,
+                    done
+                );
+            });
+
+            it ("rejects with .extra", function (done) {
+                testValidate (
+                    [ 2, 4, 6, 8, 10, 12, 14, 16 ],
+                    {
+                        '.type':    'array',
+                        '.extra':   { '.type':'number', '.gt':1, '.lt':15 }
+                    },
+                    false,
+                    done
+                );
+            });
+
+            it ("validates with .sequence and .extra", function (done) {
+                testValidate (
+                    [ 2, 4, 6, 8, 10, 12, 14 ],
+                    {
+                        '.type':        'array',
+                        '.sequence':    [
+                            { '.type':'number', '.gt':1, '.lt':3 },
+                            { '.type':'number', '.gt':3, '.lt':5 },
+                            { '.type':'number', '.gt':5, '.lt':7 },
+                            { '.type':'number', '.gt':7, '.lt':9 }
+                        ],
+                        '.extra':{ '.type':'number', '.gt':9, '.lt':15 }
+                    },
+                    true,
+                    done
+                );
+            });
+
+            it ("rejects with .sequence and .extra", function (done) {
+                testValidate (
+                    [ 2, 4, 6, 8, 10, 12, 14, 16 ],
+                    {
+                        '.type':        'array',
+                        '.sequence':    [
+                            { '.type':'number', '.gt':1, '.lt':3 },
+                            { '.type':'number', '.gt':3, '.lt':5 },
+                            { '.type':'number', '.gt':5, '.lt':7 },
+                            { '.type':'number', '.gt':7, '.lt':9 }
+                        ],
+                        '.extra':{ '.type':'number', '.gt':9, '.lt':15 }
+                    },
+                    false,
+                    done
+                );
+            });
 
         });
 
@@ -604,6 +905,7 @@ describe ("validate", function(){
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8, x:'foo' } },
                         {
+                            '.all':     { s: { '.type':'number', '.min':0, '.max':10 }, '.arbitrary':true },
                             '.exists':  [
                                 { s:{ '.type':'number', '.min':6 }, '.times':3, '.arbitrary':true },
                                 { s:{ '.type':'number', '.min':8 }, '.arbitrary':true },
@@ -815,27 +1117,100 @@ describe ("validate", function(){
 
     describe ("anyOf", function(){
 
-        it ("matches one of several schema");
+        it ("matches one of several schema", function (done) {
+            testValidate (
+                { able:42 },
+                { able:{ '.anyOf':[
+                    { '.type':'number', '.gt':100 },
+                    { '.type':'number', '.gt':80 },
+                    { '.type':'number', '.gt':60 },
+                    { '.type':'number', '.gt':40 }
+                ] } },
+                true,
+                done
+            );
+        });
 
-        it ("fails to match any of several schema");
+        it ("fails to match any of several schema", function (done) {
+            testValidate (
+                { able:42 },
+                { able:{ '.anyOf':[
+                    { '.type':'number', '.gt':100 },
+                    { '.type':'number', '.gt':80 },
+                    { '.type':'number', '.gt':60 }
+                ] } },
+                false,
+                done
+            );
+        });
 
     });
 
     describe ("oneOf", function(){
 
-        it ("matches exactly one of several schema");
+        it ("matches exactly one of several schema", function (done) {
+            testValidate (
+                { able:42 },
+                { able:{ '.oneOf':[
+                    { '.type':'number', '.gt':100 },
+                    { '.type':'number', '.gt':80 },
+                    { '.type':'number', '.gt':60 },
+                    { '.type':'number', '.gt':40 }
+                ] } },
+                true,
+                done
+            );
+        });
 
-        it ("fails to match any of several schema");
+        it ("fails to match any of several schema", function (done) {
+            testValidate (
+                { able:42 },
+                { able:{ '.oneOf':[
+                    { '.type':'number', '.gt':100 },
+                    { '.type':'number', '.gt':80 },
+                    { '.type':'number', '.gt':60 },
+                ] } },
+                false,
+                done
+            );
+        });
 
-        it ("fails to match due to too many passing schema");
+        it ("fails to match due to too many passing schema", function (done) {
+            testValidate (
+                { able:42 },
+                { able:{ '.oneOf':[
+                    { '.type':'number', '.gt':100 },
+                    { '.type':'number', '.gt':80 },
+                    { '.type':'number', '.gt':60 },
+                    { '.type':'number', '.gt':40 },
+                    { '.type':'number', '.gt':40 }
+                ] } },
+                false,
+                done
+            );
+        });
 
     });
 
     describe ("not", function(){
 
-        it ("matches when the inverse schema fails");
+        it ("matches when the inverse schema fails", function (done) {
+            testValidate (
+                { able:42 },
+                { able:{ '.not':{ '.type':'number', '.gt':90 } } },
+                true,
+                done
+            );
+        });
 
-        it ("fails when the inverse schema matches");
+        it ("fails when the inverse schema matches", function (done) {
+            testValidate (
+                { able:42 },
+                { able:{ '.not':{ '.type':'number', '.gt':40 } } },
+                false,
+                done
+            );
+        });
 
     });
 

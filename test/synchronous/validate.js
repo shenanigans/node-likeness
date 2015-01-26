@@ -233,13 +233,126 @@ describe ("validate", function(){
 
             it ("validates the document when .unique is not satisfied");
 
-            it ("validates matched children");
+            it ("validates .matchChildren", function(){
+                testValidate (
+                    {
+                        able:       "foo",
+                        baker:      "foo",
+                        charlie:    "foo",
+                        dog:        "foo",
+                        easy:       "foo"
+                    },
+                    {
+                        '.matchChildren':   {
+                            e:                  { '.type':'string', '.value':"foo" }
+                        },
+                        dog:                { '.type':'string', '.value':"foo" }
+                    },
+                    true
+                );
+            });
 
-            it ("rejects matched children");
+            it ("rejects .matchChildren", function(){
+                testValidate (
+                    {
+                        able:       "foo",
+                        baker:      "foo",
+                        charlie:    "bar",
+                        dog:        "bar",
+                        easy:       "foo"
+                    },
+                    {
+                        '.matchChildren':   {
+                            e:                  { '.type':'string', '.value':"foo" }
+                        },
+                        dog:                { '.type':'string', '.value':"bar" }
+                    },
+                    false
+                );
+            });
 
-            it ("validates with .extra");
+            it ("rejects .matchChildren and one illegal child", function(){
+                testValidate (
+                    {
+                        able:       "foo",
+                        baker:      "foo",
+                        charlie:    "foo",
+                        dog:        "foo",
+                        easy:       "foo"
+                    },
+                    {
+                        '.matchChildren':   {
+                            e:                  { '.type':'string', '.value':"foo" }
+                        }
+                    },
+                    false
+                );
+            });
 
-            it ("rejects with .extra");
+            it ("validates with .extra", function(){
+                testValidate (
+                    {
+                        able:       "foo",
+                        baker:      "bar"
+                    },
+                    {
+                        able:       { '.type':'string', '.value':"foo" },
+                        '.extra':   { '.type':'string', '.value':"bar" }
+                    },
+                    true
+                );
+            });
+
+            it ("rejects with .extra", function(){
+                testValidate (
+                    {
+                        able:       "foo",
+                        baker:      "foo"
+                    },
+                    {
+                        able:       { '.type':'string', '.value':"foo" },
+                        '.extra':   { '.type':'string', '.value':"bar" }
+                    },
+                    false
+                );
+            });
+
+            it ("validates with .matchChildren and .extra", function(){
+                testValidate (
+                    {
+                        able:       "foo",
+                        baker:      "foo",
+                        charlie:    "foo",
+                        dog:        "bar",
+                        easy:       "foo"
+                    },
+                    {
+                        '.matchChildren':   {
+                            'e':                { '.type':'string', '.value':"foo" }
+                        },
+                        '.extra':           { '.type':'string', '.value':"bar" }
+                    },
+                    true
+                );
+            });
+
+            it ("rejects matched children and one illegal child", function(){
+                testValidate (
+                    {
+                        able:       "foo",
+                        baker:      "foo",
+                        charlie:    "foo",
+                        dog:        "foo",
+                        easy:       "foo"
+                    },
+                    {
+                        '.matchChildren':   {
+                            'e':                { '.type':'string', '.value':"foo" }
+                        }
+                    },
+                    false
+                );
+            });
 
         });
 
