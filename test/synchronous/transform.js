@@ -77,12 +77,13 @@ function testTransformFailure (schema, source, target, error) {
 
         return;
     }
-    throw new Error ('transform completed illegally');
+    throw new Error ('transform completed erroneously');
 }
 
 describe ("#transform", function(){
 
     describe (".arbitrary", function(){
+
         it ('blindly duplicates an object with an arbitrary schema', function(){
             testTransform (
                 { // schema
@@ -113,6 +114,7 @@ describe ("#transform", function(){
                 }
             );
         });
+
         it ('merges into the target correctly', function(){
             testTransform (
                 { // schema
@@ -146,6 +148,7 @@ describe ("#transform", function(){
                 }
             );
         });
+
         it ('applies .all transforms to every child', function(){
             testTransform (
                 { // schema
@@ -172,6 +175,7 @@ describe ("#transform", function(){
                 }
             );
         });
+
         it ('refuses to duplicate with empty schema', function(){
             testTransformFailure (
                 { // schema
@@ -195,9 +199,11 @@ describe ("#transform", function(){
                 }
             );
         });
+
     });
 
     describe (".tolerant", function(){
+
         it ("ignores unknown keys in the input", function(){
             testTransform (
                 {    // schema
@@ -223,10 +229,13 @@ describe ("#transform", function(){
                 }
             );
         });
+
     });
 
     describe ("simple constraints", function(){
+
         describe ("type", function(){
+
             it ("rejects updates of mismatched type", function(){
                 testTransformFailure (
                     {    // schema
@@ -329,9 +338,11 @@ describe ("#transform", function(){
                     }
                 );
             });
+
         });
 
         describe ("eval/async", function(){
+
             it ("fails when transforming synchronously with an asynchronous .eval", function(){
                 testTransformFailure (
                     {    // schema
@@ -350,6 +361,7 @@ describe ("#transform", function(){
                     }
                 );
             });
+
             it ("fails when transforming with a failing .eval", function(){
                 testTransformFailure (
                     {    // schema
@@ -367,9 +379,11 @@ describe ("#transform", function(){
                     }
                 );
             });
+
         });
 
-        describe ("Object min/max/length", function(){
+        describe ("Objects", function(){
+
             it ("fails when transform exceeds max length", function(){
                 testTransformFailure (
                     {    // schema
@@ -389,8 +403,9 @@ describe ("#transform", function(){
                     }
                 );
             });
-            it ("completes when transform does not reach min length", function(){
-                testTransform (
+
+            it ("fails when transform does not reach min length", function(){
+                testTransformFailure (
                     {    // schema
                         '.arbitrary':   true,
                         '.min':         5
@@ -402,15 +417,14 @@ describe ("#transform", function(){
                         able:       'able',
                         baker:      'baker'
                     },
-                    {    // goal
-                        able:       'able',
-                        baker:      'baker',
-                        charlie:    'charlie'
+                    {    // error
+                        code:       'LIMIT'
                     }
                 );
             });
-            it ("completes when transform violates exact length", function(){
-                testTransform (
+
+            it ("fails when transform violates exact length", function(){
+                testTransformFailure (
                     {    // schema
                         '.arbitrary':   true,
                         '.length':      5
@@ -422,16 +436,49 @@ describe ("#transform", function(){
                         able:       'able',
                         baker:      'baker'
                     },
-                    {    // goal
-                        able:       'able',
-                        baker:      'baker',
-                        charlie:    'charlie'
+                    {    // error
+                        code:       'LIMIT'
                     }
                 );
             });
+
+            it ("fails when mandatory children are not filled", function(){
+                testTransformFailure (
+                    {    // schema
+                        able:       { '.type':'string' },
+                        baker:      { '.type':'string' },
+                        charlie:    { '.type':'string' },
+                        dog:        { '.type':'string' },
+                        easy:       { '.type':'string' }
+                    },
+                    {    // source
+                        baker:      'baker',
+                        dog:        'dog'
+                    },
+                    {    // target
+                        able:       'able',
+                        charlie:    'baker'
+                    },
+                    {    // error
+                        code:       'MISSING'
+                    }
+                );
+            });
+
+            describe (".unique", function(){
+
+                it ("accepts children with unique values");
+
+                it ("rejects children with non-unique values");
+
+                it ("rejects documents with non-unique mandatory children");
+
+            });
+
         });
 
-        describe ("Array min/max/length", function(){
+        describe ("Arrays", function(){
+
             it ("fails when transform exceeds max length", function(){
                 testTransformFailure (
                     {    // schema
@@ -448,8 +495,9 @@ describe ("#transform", function(){
                     }
                 );
             });
-            it ("completes when transform does not reach min length", function(){
-                testTransform (
+
+            it ("fails when transform does not reach min length", function(){
+                testTransformFailure (
                     {    // schema
                         able:       { '.type':'array', '.append':true, '.min':9 }
                     },
@@ -459,13 +507,14 @@ describe ("#transform", function(){
                     {    // target
                         able:       [ 0, 1, 2, 3, 4 ]
                     },
-                    {    // goal
-                        able:       [ 0, 1, 2, 3, 4, 9, 9, 9 ]
+                    {    // error
+                        code:       'LIMIT'
                     }
                 );
             });
-            it ("completes when transform violates exact length", function(){
-                testTransform (
+
+            it ("fails when transform violates exact length", function(){
+                testTransformFailure (
                     {    // schema
                         able:       { '.type':'array', '.append':true, '.length':5 }
                     },
@@ -475,14 +524,20 @@ describe ("#transform", function(){
                     {    // target
                         able:       [ 0, 1, 2, 3, 4 ]
                     },
-                    {    // goal
-                        able:       [ 0, 1, 2, 3, 4, 9, 9, 9 ]
+                    {    // error
+                        code:       'LIMIT'
                     }
                 );
             });
+
+            it ("processes a .sequence of transforms");
+
+            it ("fails to transform due to one failing schema in a .sequence");
+
         });
 
-        describe ("String length/match", function(){
+        describe ("Strings", function(){
+
             it ("fails when transform exceeds max length", function(){
                 testTransformFailure (
                     {    // schema
@@ -499,6 +554,7 @@ describe ("#transform", function(){
                     }
                 );
             });
+
             it ("fails when transform does not reach min length", function(){
                 testTransformFailure (
                     {    // schema
@@ -515,6 +571,7 @@ describe ("#transform", function(){
                     }
                 );
             });
+
             it ("fails when transform violates exact length", function(){
                 testTransformFailure (
                     {    // schema
@@ -531,9 +588,11 @@ describe ("#transform", function(){
                     }
                 );
             });
+
         });
 
-        describe ("Numbers min/max/modulo", function(){
+        describe ("Numbers", function(){
+
             it ("fails when transform is equal to exclusive max", function(){
                 testTransformFailure (
                     {    // schema
@@ -550,6 +609,7 @@ describe ("#transform", function(){
                     }
                 );
             });
+
             it ("fails when transform is equal to exclusive min", function(){
                 testTransformFailure (
                     {    // schema
@@ -566,6 +626,7 @@ describe ("#transform", function(){
                     }
                 );
             });
+
             it ("fails when transform is above max", function(){
                 testTransformFailure (
                     {    // schema
@@ -582,6 +643,7 @@ describe ("#transform", function(){
                     }
                 );
             });
+
             it ("fails when transform is below min", function(){
                 testTransformFailure (
                     {    // schema
@@ -598,10 +660,13 @@ describe ("#transform", function(){
                     }
                 );
             });
+
         });
+
     });
 
     describe ("predicate constraints", function(){
+
         it ("rejects an Object transform that fails an .all constraint", function(){
             testTransformFailure (
                 {    // schema
@@ -645,6 +710,7 @@ describe ("#transform", function(){
                 }
             );
         });
+
         it ("rejects an Array transform that fails an .all constraint", function(){
             testTransformFailure (
                 {    // schema
@@ -674,10 +740,13 @@ describe ("#transform", function(){
                 }
             );
         });
+
     });
 
     describe ("transforms", function(){
+
         describe ("function transforms", function(){
+
             it ("performs a function transform", function(){
                 testTransform (
                     {    // schema
@@ -694,6 +763,7 @@ describe ("#transform", function(){
                     }
                 );
             });
+
             it ("rejects an async function transform called synchronously", function(){
                 testTransformFailure (
                     {    // schema
@@ -717,6 +787,7 @@ describe ("#transform", function(){
                     }
                 );
             });
+
             it ("wraps an Error thrown by the function transform", function(){
                 testTransformFailure (
                     {    // schema
@@ -733,10 +804,13 @@ describe ("#transform", function(){
                     }
                 );
             });
+
         });
 
         describe ("Numbers", function(){
+
             describe (".cast", function(){
+
                 it ("casts Strings to Numbers", function(){
                     testTransform (
                         {    // schema
@@ -766,9 +840,11 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
 
             describe ("normalization", function(){
+
                 it ("normalizes Numbers", function(){
                     testTransform (
                         {    // schema
@@ -786,9 +862,11 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
 
             describe ("in-place math", function(){
+
                 it ("adds", function(){
                     testTransform (
                         {    // schema
@@ -809,6 +887,7 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
                 it ("adds to missing target", function(){
                     testTransform (
                         {    // schema
@@ -825,6 +904,7 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
                 it ("subtracts", function(){
                     testTransform (
                         {    // schema
@@ -845,6 +925,7 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
                 it ("subtracts from missing target", function(){
                     testTransform (
                         {    // schema
@@ -861,6 +942,7 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
                 it ("multiplies", function(){
                     testTransform (
                         {    // schema
@@ -881,6 +963,7 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
                 it ("multiplies with missing target", function(){
                     testTransform (
                         {    // schema
@@ -897,6 +980,7 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
                 it ("divides target by input", function(){
                     testTransform (
                         {    // schema
@@ -917,6 +1001,7 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
                 it ("divides missing target by input", function(){
                     testTransform (
                         {    // schema
@@ -933,6 +1018,7 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
 
             it ("filters by modulo", function(){
@@ -990,6 +1076,7 @@ describe ("#transform", function(){
             });
 
             describe ("post-transform (l|g)t(e)", function(){
+
                 it ("selects when post-transform Numbers are within bounds", function(){
                     testTransform (
                         {    // schema
@@ -1030,6 +1117,7 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
                 it ("rejects when post-transform Numbers are out of bounds", function(){
                     testTransformFailure (
                         {    // schema
@@ -1263,9 +1351,11 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
 
             describe ("post-transform .all", function(){
+
                 it ("proceeds when post-transform Numbers pass .all constraint", function(){
                     testTransform (
                         {    // schema
@@ -1361,11 +1451,15 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
+
         });
 
         describe ("Strings", function(){
+
             describe (".split", function(){
+
                 it ("splits using a regular expression", function(){
                     testTransform (
                         {    // schema
@@ -1380,6 +1474,7 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
                 it ("splits using a grouping regular expression", function(){
                     testTransform (
                         {    // schema
@@ -1394,9 +1489,11 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
 
             describe (".group", function(){
+
                 it ("groups using a regular expression", function(){
                     testTransform (
                         {    // schema
@@ -1411,9 +1508,11 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
 
             describe (".inject", function(){
+
                 it ("injects a String into the input", function(){
                     testTransform (
                         {    // schema
@@ -1464,9 +1563,11 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
 
             describe (".insert", function(){
+
                 it ("inserts the input into the target", function(){
                     testTransform (
                         {    // schema
@@ -1500,9 +1601,11 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
 
             describe (".append", function(){
+
                 it ("appends the input onto the target", function(){
                     testTransform (
                         {    // schema
@@ -1536,9 +1639,11 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
 
             describe (".prepend", function(){
+
                 it ("prepends the input onto the target", function(){
                     testTransform (
                         {    // schema
@@ -1572,9 +1677,11 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
 
             describe (".case", function(){
+
                 it ("uppercase converts the input", function(){
                     testTransform (
                         {    // schema
@@ -1608,9 +1715,11 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
 
             describe ("post-transform .max", function(){
+
                 it ("proceeds when post-transform String is within bounds", function(){
                     testTransform (
                         {    // schema
@@ -1632,6 +1741,7 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
                 it ("fails when post-transform String is out of bounds", function(){
                     testTransformFailure (
                         {    // schema
@@ -1653,9 +1763,11 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
 
             describe ("post-transform .regex match", function(){
+
                 it ("proceeds when post-transform String matches a regex filter", function(){
                     testTransform (
                         {    // schema
@@ -1677,6 +1789,7 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
                 it ("fails when post-transform String does not match a regex filter", function(){
                     testTransformFailure (
                         {    // schema
@@ -1698,9 +1811,11 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
 
             describe ("post-transform .all", function(){
+
                 it ("proceeds when post-transform Strings pass .all constraint", function(){
                     testTransform (
                         {    // schema
@@ -1796,11 +1911,15 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
+
         });
 
         describe ("Booleans", function(){
+
             describe (".cast", function(){
+
                 it ("casts Strings to Booleans", function(){
                     testTransform (
                         {    // schema
@@ -1854,9 +1973,11 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
 
             describe (".inverse", function(){
+
                 it ("inverts booleans", function(){
                     testTransform (
                         { able:{ '.type':'boolean', '.inverse':true }},
@@ -1865,11 +1986,15 @@ describe ("#transform", function(){
                         { able:false }
                     );
                 });
+
             });
+
         });
 
         describe ("Objects", function(){
+
             describe (".cast", function(){
+
                 it ("casts JSON Strings to Objects", function(){
                     testTransform (
                         {    // schema
@@ -1919,9 +2044,11 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
 
             describe (".inject", function(){
+
                 it ("injects keys into the input", function(){
                     testTransform (
                         {    // schema
@@ -1944,9 +2071,11 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
 
             describe (".insert", function(){
+
                 it ("inserts input Object's keys into a child key", function(){
                     testTransform (
                         {    // schema
@@ -1967,6 +2096,7 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
                 it ("processes the input Object as the inserted child key", function(){
                     testTransform (
                         {    // schema
@@ -1994,6 +2124,7 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
                 it ("injects before insertion", function(){
                     testTransform (
                         {    // schema
@@ -2026,9 +2157,11 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
 
             describe (".rename", function(){
+
                 it ("renames keys", function(){
                     testTransform (
                         {    // schema
@@ -2047,6 +2180,7 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
                 it ("clobbers keys in the source", function(){
                     testTransform (
                         {    // schema
@@ -2066,6 +2200,7 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
                 it ("processes keys with their new names", function(){
                     testTransform (
                         {    // schema
@@ -2085,9 +2220,11 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
 
             describe (".drop", function(){
+
                 it ("drops keys from the input", function(){
                     testTransform (
                         {    // schema
@@ -2105,9 +2242,11 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
 
             describe (".clip", function(){
+
                 it ("keeps only the newest keys from the target document", function(){
                     testTransform (
                         {    // schema
@@ -2130,6 +2269,7 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
                 it ("keeps only the oldest keys from the target document", function(){
                     testTransform (
                         {    // schema
@@ -2152,9 +2292,11 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
 
             describe ("post-transform .max", function(){
+
                 it ("fails when a post-injection source violates a .max constraint", function(){
                     testTransformFailure (
                         {    // schema
@@ -2179,11 +2321,15 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
+
         });
 
         describe ("Arrays", function(){
+
             describe (".cast", function(){
+
                 it ("casts JSON Strings to Arrays", function(){
                     testTransform (
                         {    // schema
@@ -2225,9 +2371,11 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
 
             describe (".inject", function(){
+
                 it ("adds values to the input", function(){
                     testTransform (
                         {    // schema
@@ -2294,9 +2442,11 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
 
             describe (".insert", function(){
+
                 it ("inserts input values into the target", function(){
                     testTransform (
                         {    // schema
@@ -2372,9 +2522,17 @@ describe ("#transform", function(){
                         ]
                     );
                 });
+
+                it ("inserts to the correct position when using a simple .sort");
+
+                it ("inserts to the correct position when using a complex .sort");
+
+                it ("inserts only novel values with .unique");
+
             });
 
             describe (".append", function(){
+
                 it ("appends input values to the target", function(){
                     testTransform (
                         {    // schema
@@ -2414,9 +2572,17 @@ describe ("#transform", function(){
                         ]
                     );
                 });
+
+                it ("inserts to the correct position when using a simple .sort");
+
+                it ("inserts to the correct position when using a complex .sort");
+
+                it ("appends only novel values with .unique");
+
             });
 
             describe (".prepend", function(){
+
                 it ("prepends input values to the target", function(){
                     testTransform (
                         {    // schema
@@ -2456,9 +2622,17 @@ describe ("#transform", function(){
                         ]
                     );
                 });
+
+                it ("inserts to the correct position when using a simple .sort");
+
+                it ("inserts to the correct position when using a complex .sort");
+
+                it ("prepends only novel values with .unique");
+
             });
 
             describe (".clip", function(){
+
                 it ("keeps only the last elements of the target", function(){
                     testTransform (
                         {    // schema
@@ -2522,9 +2696,11 @@ describe ("#transform", function(){
                         ]
                     );
                 });
+
             });
 
             describe (".slice", function(){
+
                 it ("keeps only a slice of elements from the target", function(){
                     testTransform (
                         {    // schema
@@ -2540,9 +2716,11 @@ describe ("#transform", function(){
                         ]
                     );
                 });
+
             });
 
             describe ("post-transform .max", function(){
+
                 it ("rejects element counts not within bounds after transform", function(){
                     testTransformFailure (
                         {    // schema
@@ -2611,8 +2789,35 @@ describe ("#transform", function(){
                         }
                     );
                 });
+
             });
+
         });
+
+    });
+
+    describe ("anyOf", function(){
+
+        it ("transforms with one of several schema");
+
+        it ("fails to match any of several schema");
+
+    });
+
+    describe ("oneOf", function(){
+
+        it ("transforms with one of several schema");
+
+        it ("fails to transform with any of several schema");
+
+        it ("fails to transform due to too many passing schema");
+
+    });
+
+    describe ("not", function(){
+
+        it ("fails to transform when the inverse schema validates");
+
     });
 
 });

@@ -116,6 +116,7 @@ describe ("mongoloid updates", function(){
     this.timeout (150);
 
     describe ("$set", function(){
+
         it ("sets Strings on shallow paths with named children", function (done) {
             testMongoloid (
                 {    // schema
@@ -335,9 +336,11 @@ describe ("mongoloid updates", function(){
                 done
             );
         });
+
     });
 
     describe ("$math", function(){
+
         it ("adds", function (done) {
             testMongoloid (
                 {    // schema
@@ -401,6 +404,7 @@ describe ("mongoloid updates", function(){
     });
 
     describe ("$push", function(){
+
         it ("appends an element", function (done) {
             testMongoloid (
                 {    // schema
@@ -508,13 +512,17 @@ describe ("mongoloid updates", function(){
                 done
             );
         });
+
     });
 
     describe ("$sort", function(){
 
+
+
     });
 
     describe ("$slice", function(){
+
         it ("reserves the first elements of an Array", function (done) {
             testMongoloid (
                 {    // schema
@@ -571,5 +579,7 @@ describe ("mongoloid updates", function(){
                 done
             );
         });
+
     });
+
 });

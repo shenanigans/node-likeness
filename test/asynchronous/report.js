@@ -32,7 +32,9 @@ function testReport (doc, schema, shouldPass, callback) {
 }
 
 describe ("report", function(){
+
     describe (".arbitrary", function(){
+
         it ("gets upset about extraneous properties, by default", function (done) {
             testReport (
                 { able:4 },
@@ -41,6 +43,7 @@ describe ("report", function(){
                 done
             );
         });
+
         it ("accepts the content of .arbitrary Objects", function (done) {
             testReport (
                 { able:4, baker:{ able:'four' }, charlie:[ { able:'able' } ]},
@@ -49,9 +52,11 @@ describe ("report", function(){
                 done
             );
         });
+
     });
 
     describe (".optional", function(){
+
         it ("gets upset about missing properties", function (done) {
             testReport (
                 { able:4, charlie:3 },
@@ -60,6 +65,7 @@ describe ("report", function(){
                 done
             );
         });
+
         it ("accepts the absence of .optional properties", function (done) {
             testReport (
                 { able:4, charlie:3 },
@@ -68,9 +74,11 @@ describe ("report", function(){
                 done
             );
         });
+
     });
 
     describe ("simple constraints", function(){
+
         describe ("type", function(){
             var testDoc = {
                 object:     {},
@@ -104,6 +112,7 @@ describe ("report", function(){
                     done
                 );
             });
+
             it ("constrains deep properties by type", function (done) {
                 testReport (
                     testDoc,
@@ -123,7 +132,9 @@ describe ("report", function(){
                     done
                 );
             });
+
         });
+
         describe ("eval/async", function(){
             var testDoc = "foobarbaz";
 
@@ -140,6 +151,7 @@ describe ("report", function(){
                     done
                 );
             });
+
             it ("rejects the document when .eval is synchronously not ok", function (done) {
                 testReport (
                     testDoc,
@@ -153,6 +165,7 @@ describe ("report", function(){
                     done
                 );
             });
+
             it ("validates the document when .eval is asynchronously ok", function (done) {
                 testReport (
                     testDoc,
@@ -172,6 +185,7 @@ describe ("report", function(){
                     done
                 );
             });
+
             it ("rejects the document when .eval is asynchronously not ok", function (done) {
                 testReport (
                     testDoc,
@@ -191,7 +205,9 @@ describe ("report", function(){
                     done
                 );
             });
+
         });
+
         describe ("Object min/max/length", function(){
             var testDoc = {
                 able:       4,
@@ -200,6 +216,7 @@ describe ("report", function(){
                 dog:        7,
                 easy:       8
             };
+
             it ("validates the document when .minKeys is satisfied", function (done) {
                 testReport (
                     testDoc,
@@ -211,6 +228,7 @@ describe ("report", function(){
                     done
                 );
             });
+
             it ("rejects the document when .minKeys is not satisfied", function (done) {
                 testReport (
                     testDoc,
@@ -222,6 +240,7 @@ describe ("report", function(){
                     done
                 );
             });
+
             it ("validates the document when .maxKeys is satisfied", function (done) {
                 testReport (
                     testDoc,
@@ -233,6 +252,7 @@ describe ("report", function(){
                     done
                 );
             });
+
             it ("rejects the document when .maxKeys is not satisfied", function (done) {
                 testReport (
                     testDoc,
@@ -244,9 +264,12 @@ describe ("report", function(){
                     done
                 );
             });
+
         });
+
         describe ("Array min/max/length", function(){
             var testDoc = [ 'able', 'baker', 'charlie', 'dog', 'easy' ];
+
             it ("validates the document when .minVals is satisfied", function (done) {
                 testReport (
                     testDoc,
@@ -255,6 +278,7 @@ describe ("report", function(){
                     done
                 );
             });
+
             it ("rejects the document when .minVals is not satisfied", function (done) {
                 testReport (
                     testDoc,
@@ -263,6 +287,7 @@ describe ("report", function(){
                     done
                 );
             });
+
             it ("validates the document when .maxVals is satisfied", function (done) {
                 testReport (
                     testDoc,
@@ -271,6 +296,7 @@ describe ("report", function(){
                     done
                 );
             });
+
             it ("rejects the document when .maxVals is not satisfied", function (done) {
                 testReport (
                     testDoc,
@@ -279,7 +305,9 @@ describe ("report", function(){
                     done
                 );
             });
+
         });
+
         describe ("String length/match", function(){
             var testDoc = "foobarbaz";
 
@@ -291,6 +319,7 @@ describe ("report", function(){
                     done
                 );
             });
+
             it ("rejects the document when .min is not satisfied", function (done) {
                 testReport (
                     testDoc,
@@ -299,6 +328,7 @@ describe ("report", function(){
                     done
                 );
             });
+
             it ("validates the document when .max is satisfied", function (done) {
                 testReport (
                     testDoc,
@@ -307,6 +337,7 @@ describe ("report", function(){
                     done
                 );
             });
+
             it ("rejects the document when .max is not satisfied", function (done) {
                 testReport (
                     testDoc,
@@ -315,7 +346,9 @@ describe ("report", function(){
                     done
                 );
             });
+
         });
+
         describe ("Numbers min/max/modulo", function(){
             testDoc = 7;
 
@@ -327,6 +360,7 @@ describe ("report", function(){
                     done
                 );
             });
+
             it ("rejects the document when .min is not satisfied", function (done) {
                 testReport (
                     testDoc,
@@ -335,6 +369,7 @@ describe ("report", function(){
                     done
                 );
             });
+
             it ("validates the document when .max is satisfied", function (done) {
                 testReport (
                     testDoc,
@@ -343,6 +378,7 @@ describe ("report", function(){
                     done
                 );
             });
+
             it ("rejects the document when .max is not satisfied", function (done) {
                 testReport (
                     testDoc,
@@ -351,6 +387,7 @@ describe ("report", function(){
                     done
                 );
             });
+
             it ("validates the document when .modulo is satisfied", function (done) {
                 testReport (
                     testDoc,
@@ -359,6 +396,7 @@ describe ("report", function(){
                     done
                 );
             });
+
             it ("rejects the document when .modulo is not satisfied", function (done) {
                 testReport (
                     testDoc,
@@ -367,12 +405,17 @@ describe ("report", function(){
                     done
                 );
             });
+
         });
+
     });
 
     describe ("predicate constraints", function(){
+
         describe ("Objects", function(){
+
             describe (".all", function(){
+
                 it ("validates with a passing .all constraint", function (done) {
                     testReport (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
@@ -387,6 +430,7 @@ describe ("report", function(){
                         done
                     );
                 });
+
                 it ("rejects with a failing .all constraint", function (done) {
                     testReport (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
@@ -401,8 +445,11 @@ describe ("report", function(){
                         done
                     );
                 });
+
             });
+
             describe ("single .exists", function(){
+
                 it ("validates with a passing .exists constraint", function (done) {
                     testReport (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
@@ -417,6 +464,7 @@ describe ("report", function(){
                         done
                     );
                 });
+
                 it ("rejects with a failing .exists constraint", function (done) {
                     testReport (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
@@ -431,8 +479,11 @@ describe ("report", function(){
                         done
                     );
                 });
+
             });
+
             describe (".exists and .times", function(){
+
                 it ("validates with a passing .times constraint", function (done) {
                     testReport (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
@@ -447,6 +498,7 @@ describe ("report", function(){
                         done
                     );
                 });
+
                 it ("rejects with a failing .times constraint", function (done) {
                     testReport (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
@@ -461,6 +513,7 @@ describe ("report", function(){
                         done
                     );
                 });
+
                 it ("validates with many passing .exists constraints", function (done) {
                     testReport (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8, x:'foo' } },
@@ -480,6 +533,7 @@ describe ("report", function(){
                         done
                     );
                 });
+
                 it ("rejects with many passing and one failing .exist constraint", function (done) {
                     testReport (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
@@ -499,6 +553,7 @@ describe ("report", function(){
                         done
                     );
                 });
+
                 it ("rejects with many passing and one failing .exist constraint", function (done) {
                     testReport (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
@@ -518,8 +573,11 @@ describe ("report", function(){
                         done
                     );
                 });
+
             });
+
             describe (".all and multiple .exists", function(){
+
                 it ("validates with .all and many passing .exists constraints", function (done) {
                     testReport (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8, x:'foo' } },
@@ -539,6 +597,7 @@ describe ("report", function(){
                         done
                     );
                 });
+
                 it ("rejects with passing .all and mixed passing/failing .exists", function (done) {
                     testReport (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8, x:'foo' } },
@@ -559,6 +618,7 @@ describe ("report", function(){
                         done
                     );
                 });
+
                 it ("rejects with many passing .exist constraints but failing .all", function (done) {
                     testReport (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8, x:'foo' } },
@@ -579,10 +639,15 @@ describe ("report", function(){
                         done
                     );
                 });
+
             });
+
         });
+
         describe ("Arrays", function(){
+
             describe (".all", function(){
+
                 it ("validates with a passing .all constraint", function (done) {
                     testReport (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8 } ],
@@ -591,6 +656,7 @@ describe ("report", function(){
                         done
                     );
                 });
+
                 it ("rejects with a failing .all constraint", function (done) {
                     testReport (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8 } ],
@@ -599,8 +665,11 @@ describe ("report", function(){
                         done
                     );
                 });
+
             });
+
             describe (".exists and .times", function(){
+
                 it ("validates with a passing .times constraint", function (done) {
                     testReport (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8 } ],
@@ -612,6 +681,7 @@ describe ("report", function(){
                         done
                     );
                 });
+
                 it ("rejects with a failing .times constraint", function (done) {
                     testReport (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8 } ],
@@ -623,6 +693,7 @@ describe ("report", function(){
                         done
                     );
                 });
+
                 it ("validates with many passing .exists constraints", function (done) {
                     testReport (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8, x:'foo' } ],
@@ -639,6 +710,7 @@ describe ("report", function(){
                         done
                     );
                 });
+
                 it ("rejects with many passing and one failing .exist constraint", function (done) {
                     testReport (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8, x:'foo' } ],
@@ -655,8 +727,11 @@ describe ("report", function(){
                         done
                     );
                 });
+
             });
+
             describe (".all and .exists", function(){
+
                 it ("validates with .all and many passing .exists constraints", function (done) {
                     testReport (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8, x:'foo' } ],
@@ -673,6 +748,7 @@ describe ("report", function(){
                         done
                     );
                 });
+
                 it ("rejects an with passing .all and mixed passing/failing .exists", function (done) {
                     testReport (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8, x:'foo' } ],
@@ -689,6 +765,7 @@ describe ("report", function(){
                         done
                     );
                 });
+
                 it ("rejects with many passing .exist constraints but failing .all",
                     function (done) {
                         testReport (
@@ -707,7 +784,11 @@ describe ("report", function(){
                         );
                     }
                 );
+
             });
+
         });
+
     });
+
 });

@@ -66,17 +66,33 @@ var async = require ('async');
 var getTypeStr = require ('./lib/GetTypeStr');
 
 var SPECIAL_KEYS = {
+    //================================== Metadata
+    //      Describe the schema document
+    '.title':           'title',
+    '.description':     'description',
+
+    //================================== Meta-Validations
+    //      Constrain by permutations of other schema
+    //      Transforms by matching schema
+    '.anyOf':           'anyOf',        // match first among an Array of schema
+    '.oneOf':           'oneOf',        // match exactly one among an Array of schema
+    '.exactlyOne':      'oneOf',
+    '.not':             'not',          // must not match schema
+
+    //================================== Validations
+    //      Constrain documents and incoming transforms
     '.type':            'type',         // restrict document type
     '.adHoc':           'adHoc',        // accept unknown keys
     '.arbitrary':       'adHoc',
     '.tolerant':        'tolerant',     // ignore unknown keys
     '.optional':        'optional',     // accept `undefined` as a valid document
-    '.optional':        'optional',
-    '.optional':        'optional',
+    '.unique':          'unique',       // all children or array elements must be unique values
     '.key':             'keyTest',      // for matching arbitrary keys
     '.keyTest':         'keyTest',
     '.children':        'children',     // optional - this is the escape strategy for special keys
     '.child':           'children',
+    '.matchChildren':   '.matchChildren',   // children matched by regex rather than exact name
+    '.matchChild':      '.matchChildren',
     '.min':             'min',          // min/max value, length, etc.
     '.max':             'max',
     '.exclusiveMin':    'exclusiveMin',
@@ -117,12 +133,17 @@ var SPECIAL_KEYS = {
     '.forAll':          'all',
     '.every':           'all',
     '.forEvery':        'all',
+    '.extras':          'extras',       // keys or elements not covered by any other constraint
+    '.extra':           'extras',
     '.value':           'value',        // exact value match
+    '.anyValue':        'anyValue',     // exact value match against Array of candidates
     '.sequence':        'sequence',     // an Array of schema which must match sequentially
-    //============================= Transforms!
+
+    //================================== Transforms
     //      These don't evaluate documents, they transform valid documents
     '.cast':            'cast',         // convert strings to match .type
     '.set':             'setVal',       // hard overwrite
+    '.default':         'default',      // fill if not defined
     '.inject':          'inject',       // insert hard data into input and overwrite target
     '.insert':          'insert',       // insert input into target at Array/String position
     '.append':          'append',       // append input to target Array/String
@@ -225,33 +246,57 @@ var Likeness = function (schema, path) {
         }
     }
 
-    // if we have an async function somewhere, mark ourselves async
+    // if we have an async Function somewhere, mark ourselves async
     if (this.constraints.async)
         this.isAsync = true;
 
     // convert special constriants to Likeness instances
+    if (this.constraints.anyOf)
+        for (var i in this.constraints.anyOf) {
+            this.constraints.anyOf[i] = new Likeness (this.constraints.anyOf[i]);
+            if (this.constraints.anyOf[i].isAsync)
+                this.isAsync = true;
+        }
+
+    if (this.constraints.oneOf)
+        for (var i in this.constraints.oneOf) {
+            this.constraints.oneOf[i] = new Likeness (this.constraints.oneOf[i]);
+            if (this.constraints.oneOf[i].isAsync)
+                this.isAsync = true;
+        }
+
+    if (this.constraints.not) {
+        this.constraints.not = new Likeness (this.constraints.not);
+        if (this.constraints.not.isAsync)
+            this.isAsync = true;
+    }
+
     if (this.constraints.all) {
-        this.constraints.all = new Likeness (
-            this.constraints.all
-        );
+        this.constraints.all = new Likeness (this.constraints.all);
         if (this.constraints.all.isAsync)
             this.isAsync = true;
     }
+
+    if (this.constraints.extras) {
+        this.constraints.extras = new Likeness (this.constraints.extras);
+        if (this.constraints.extras.isAsync)
+            this.isAsync = true;
+    }
+
     if (this.constraints.exists) {
         if (getTypeStr (this.constraints.exists) == 'array')
-            for (var i in this.constraints.exists)
-                this.constraints.exists[i] = new Likeness (
-                    this.constraints.exists[i]
-                );
-        else
-            this.constraints.exists = [ new Likeness (
-                this.constraints.exists
-            ) ];
-
-        for (var i in this.constraints.exists)
-            if (this.constraints.exists[i].isAsync)
+            for (var i in this.constraints.exists) {
+                this.constraints.exists[i] = new Likeness (this.constraints.exists[i]);
+                if (this.constraints.exists[i].isAsync)
+                    this.isAsync = true;
+            }
+        else {
+            this.constraints.exists = [ new Likeness (this.constraints.exists) ];
+            if (this.constraints.exists[0].isAsync)
                 this.isAsync = true;
+        }
     }
+
     if (this.constraints.sequence)
         for (var i in this.constraints.sequence) {
             var newChild = new Likeness (
@@ -262,6 +307,7 @@ var Likeness = function (schema, path) {
                 this.isAsync = true;
             this.constraints.sequence[i] = newChild;
         }
+
     if (this.constraints.keyTest) {
         var newChild = new Likeness (
             this.constraints.keyTest
@@ -270,6 +316,7 @@ var Likeness = function (schema, path) {
             this.isAsync = true;
         this.constraints.keyTest = newChild;
     }
+
     if (this.constraints.drop) {
         var drop = {};
         for (var i in this.constraints.drop)
@@ -278,6 +325,53 @@ var Likeness = function (schema, path) {
     }
 };
 
+
+/**     @member/Function export
+    Create a JSON representation of this schema, with several caveats which may distinguish it from
+    the schema used to instantiate this Likeness. These are:
+     * all special key names are converted from synonyms to canonical names (e.g. `.child` becomes
+        `.children` )
+     * the `.children` key is **only** used if a child key begins with a period.
+@returns/Object
+    A canonical JSON representation of this schema.
+*/
+Likeness.prototype.export = function(){
+    var output = {};
+    for (var key in this.constraints) {
+        var constraint = this.constraints[key];
+        if (constraint instanceof Likeness)
+            output['.'+key] = constraint.export();
+        else
+            output['.'+key] = constraint;
+    }
+
+    var childKeys = Object.keys (this.children);
+    if (!childKeys.length)
+        return output;
+
+    // do we need to use a .children property?
+    var needsChildBlock = false;
+    for (var i=0,j=childKeys.length; i<j; i++)
+        if (childKeys[i] && childKeys[i][0] == '.') {
+            needsChildBlock = true;
+            break;
+        }
+
+    if (!needsChildBlock) {
+        for (var i=0,j=childKeys.length; i<j; i++) {
+            var key = childKeys[i];
+            output[key] = this.children[key];
+        }
+        return output;
+    }
+
+    var children = output['.children'] = {};
+    for (var i=0,j=childKeys.length; i<j; i++) {
+        var key = childKeys[i];
+        children[key] = this.children[key];
+    }
+    return output;
+};
 
 
 Likeness.prototype.validate = require ('./lib/Validate');

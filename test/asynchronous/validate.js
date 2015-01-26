@@ -36,6 +36,7 @@ function testValidate (doc, schema, shouldPass, callback) {
 describe ("validate", function(){
 
     describe (".arbitrary", function(){
+
         it ("gets upset about extraneous properties, by default", function (done) {
             testValidate (
                 { able:4 },
@@ -44,6 +45,7 @@ describe ("validate", function(){
                 done
             );
         });
+
         it ("accepts the content of .arbitrary Objects", function (done) {
             testValidate (
                 { able:4, baker:{ able:'four' }, charlie:[ { able:'able' } ]},
@@ -52,9 +54,11 @@ describe ("validate", function(){
                 done
             );
         });
+
     });
 
     describe (".optional", function(){
+
         it ("gets upset about missing properties", function (done) {
             testValidate (
                 { able:4, charlie:3 },
@@ -63,6 +67,7 @@ describe ("validate", function(){
                 done
             );
         });
+
         it ("accepts the absence of .optional properties", function (done) {
             testValidate (
                 { able:4, charlie:3 },
@@ -71,9 +76,11 @@ describe ("validate", function(){
                 done
             );
         });
+
     });
 
     describe ("simple constraints", function(){
+
         describe ("type", function(){
             var testDoc = {
                 object:     {},
@@ -107,6 +114,7 @@ describe ("validate", function(){
                     done
                 );
             });
+
             it ("constrains deep properties by type", function (done) {
                 testValidate (
                     testDoc,
@@ -126,7 +134,9 @@ describe ("validate", function(){
                     done
                 );
             });
+
         });
+
         describe ("eval/async", function(){
             var testDoc = "foobarbaz";
 
@@ -143,6 +153,7 @@ describe ("validate", function(){
                     done
                 );
             });
+
             it ("rejects the document when .eval is synchronously not ok", function (done) {
                 testValidate (
                     testDoc,
@@ -156,6 +167,7 @@ describe ("validate", function(){
                     done
                 );
             });
+
             it ("validates the document when .eval is asynchronously ok", function (done) {
                 testValidate (
                     testDoc,
@@ -175,6 +187,7 @@ describe ("validate", function(){
                     done
                 );
             });
+
             it ("rejects the document when .eval is asynchronously not ok", function (done) {
                 testValidate (
                     testDoc,
@@ -194,8 +207,10 @@ describe ("validate", function(){
                     done
                 );
             });
+
         });
-        describe ("Object min/max/length", function(){
+
+        describe ("Objects", function(){
             var testDoc = {
                 able:       4,
                 baker:      5,
@@ -203,6 +218,7 @@ describe ("validate", function(){
                 dog:        7,
                 easy:       8
             };
+
             it ("validates the document when .minKeys is satisfied", function (done) {
                 testValidate (
                     testDoc,
@@ -214,6 +230,7 @@ describe ("validate", function(){
                     done
                 );
             });
+
             it ("rejects the document when .minKeys is not satisfied", function (done) {
                 testValidate (
                     testDoc,
@@ -225,6 +242,7 @@ describe ("validate", function(){
                     done
                 );
             });
+
             it ("validates the document when .maxKeys is satisfied", function (done) {
                 testValidate (
                     testDoc,
@@ -236,6 +254,7 @@ describe ("validate", function(){
                     done
                 );
             });
+
             it ("rejects the document when .maxKeys is not satisfied", function (done) {
                 testValidate (
                     testDoc,
@@ -247,9 +266,16 @@ describe ("validate", function(){
                     done
                 );
             });
+
+            it ("validates the document when .unique is satisfied");
+
+            it ("validates the document when .unique is not satisfied");
+
         });
-        describe ("Array min/max/length", function(){
+
+        describe ("Arrays", function(){
             var testDoc = [ 'able', 'baker', 'charlie', 'dog', 'easy' ];
+
             it ("validates the document when .minVals is satisfied", function (done) {
                 testValidate (
                     testDoc,
@@ -258,6 +284,7 @@ describe ("validate", function(){
                     done
                 );
             });
+
             it ("rejects the document when .minVals is not satisfied", function (done) {
                 testValidate (
                     testDoc,
@@ -266,6 +293,7 @@ describe ("validate", function(){
                     done
                 );
             });
+
             it ("validates the document when .maxVals is satisfied", function (done) {
                 testValidate (
                     testDoc,
@@ -274,6 +302,7 @@ describe ("validate", function(){
                     done
                 );
             });
+
             it ("rejects the document when .maxVals is not satisfied", function (done) {
                 testValidate (
                     testDoc,
@@ -282,8 +311,26 @@ describe ("validate", function(){
                     done
                 );
             });
+
+            it ("validates the document when a simple .sort is satisfied");
+
+            it ("validates the document when a complex .sort is satisfied");
+
+            it ("rejects the document when a simple .sort is not satisfied");
+
+            it ("rejects the document when a complex .sort is not satisfied");
+
+            it ("validates the document when .unique is satisfied");
+
+            it ("validates the document when .unique is not satisfied");
+
+            it ("validates with a .sequence of schemas");
+
+            it ("rejects with a .sequence of schemas");
+
         });
-        describe ("String length/match", function(){
+
+        describe ("Strings", function(){
             var testDoc = "foobarbaz";
 
             it ("validates the document when .min is satisfied", function (done) {
@@ -294,6 +341,7 @@ describe ("validate", function(){
                     done
                 );
             });
+
             it ("rejects the document when .min is not satisfied", function (done) {
                 testValidate (
                     testDoc,
@@ -302,6 +350,7 @@ describe ("validate", function(){
                     done
                 );
             });
+
             it ("validates the document when .max is satisfied", function (done) {
                 testValidate (
                     testDoc,
@@ -310,6 +359,7 @@ describe ("validate", function(){
                     done
                 );
             });
+
             it ("rejects the document when .max is not satisfied", function (done) {
                 testValidate (
                     testDoc,
@@ -318,8 +368,10 @@ describe ("validate", function(){
                     done
                 );
             });
+
         });
-        describe ("Numbers min/max/modulo", function(){
+
+        describe ("Numbers", function(){
             testDoc = 7;
 
             it ("validates the document when .min is satisfied", function (done) {
@@ -330,6 +382,7 @@ describe ("validate", function(){
                     done
                 );
             });
+
             it ("rejects the document when .min is not satisfied", function (done) {
                 testValidate (
                     testDoc,
@@ -338,6 +391,7 @@ describe ("validate", function(){
                     done
                 );
             });
+
             it ("validates the document when .max is satisfied", function (done) {
                 testValidate (
                     testDoc,
@@ -346,6 +400,7 @@ describe ("validate", function(){
                     done
                 );
             });
+
             it ("rejects the document when .max is not satisfied", function (done) {
                 testValidate (
                     testDoc,
@@ -354,6 +409,7 @@ describe ("validate", function(){
                     done
                 );
             });
+
             it ("validates the document when .modulo is satisfied", function (done) {
                 testValidate (
                     testDoc,
@@ -362,6 +418,7 @@ describe ("validate", function(){
                     done
                 );
             });
+
             it ("rejects the document when .modulo is not satisfied", function (done) {
                 testValidate (
                     testDoc,
@@ -370,12 +427,17 @@ describe ("validate", function(){
                     done
                 );
             });
+
         });
+
     });
 
     describe ("predicate constraints", function(){
+
         describe ("Objects", function(){
+
             describe (".all", function(){
+
                 it ("validates with a passing .all constraint", function (done) {
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
@@ -390,6 +452,7 @@ describe ("validate", function(){
                         done
                     );
                 });
+
                 it ("rejects with a failing .all constraint", function (done) {
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
@@ -404,8 +467,11 @@ describe ("validate", function(){
                         done
                     );
                 });
+
             });
+
             describe ("single .exists", function(){
+
                 it ("validates with a passing .exists constraint", function (done) {
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
@@ -420,6 +486,7 @@ describe ("validate", function(){
                         done
                     );
                 });
+
                 it ("rejects with a failing .exists constraint", function (done) {
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
@@ -434,8 +501,11 @@ describe ("validate", function(){
                         done
                     );
                 });
+
             });
+
             describe (".exists and .times", function(){
+
                 it ("validates with a passing .times constraint", function (done) {
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
@@ -450,6 +520,7 @@ describe ("validate", function(){
                         done
                     );
                 });
+
                 it ("rejects with a failing .times constraint", function (done) {
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
@@ -464,6 +535,7 @@ describe ("validate", function(){
                         done
                     );
                 });
+
                 it ("validates with many passing .exists constraints", function (done) {
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8, x:'foo' } },
@@ -483,6 +555,7 @@ describe ("validate", function(){
                         done
                     );
                 });
+
                 it ("rejects with many passing and one failing .exist constraint", function (done) {
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
@@ -502,6 +575,7 @@ describe ("validate", function(){
                         done
                     );
                 });
+
                 it ("rejects with many passing and one failing .exist constraint", function (done) {
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
@@ -521,8 +595,11 @@ describe ("validate", function(){
                         done
                     );
                 });
+
             });
+
             describe (".all and multiple .exists", function(){
+
                 it ("validates with .all and many passing .exists constraints", function (done) {
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8, x:'foo' } },
@@ -542,6 +619,7 @@ describe ("validate", function(){
                         done
                     );
                 });
+
                 it ("rejects with passing .all and mixed passing/failing .exists", function (done) {
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8, x:'foo' } },
@@ -562,6 +640,7 @@ describe ("validate", function(){
                         done
                     );
                 });
+
                 it ("rejects with many passing .exist constraints but failing .all", function (done) {
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8, x:'foo' } },
@@ -582,10 +661,15 @@ describe ("validate", function(){
                         done
                     );
                 });
+
             });
+
         });
+
         describe ("Arrays", function(){
+
             describe (".all", function(){
+
                 it ("validates with a passing .all constraint", function (done) {
                     testValidate (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8 } ],
@@ -594,6 +678,7 @@ describe ("validate", function(){
                         done
                     );
                 });
+
                 it ("rejects with a failing .all constraint", function (done) {
                     testValidate (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8 } ],
@@ -602,8 +687,11 @@ describe ("validate", function(){
                         done
                     );
                 });
+
             });
+
             describe (".exists and .times", function(){
+
                 it ("validates with a passing .times constraint", function (done) {
                     testValidate (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8 } ],
@@ -615,6 +703,7 @@ describe ("validate", function(){
                         done
                     );
                 });
+
                 it ("rejects with a failing .times constraint", function (done) {
                     testValidate (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8 } ],
@@ -626,6 +715,7 @@ describe ("validate", function(){
                         done
                     );
                 });
+
                 it ("validates with many passing .exists constraints", function (done) {
                     testValidate (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8, x:'foo' } ],
@@ -642,6 +732,7 @@ describe ("validate", function(){
                         done
                     );
                 });
+
                 it ("rejects with many passing and one failing .exist constraint", function (done) {
                     testValidate (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8, x:'foo' } ],
@@ -658,8 +749,11 @@ describe ("validate", function(){
                         done
                     );
                 });
+
             });
+
             describe (".all and .exists", function(){
+
                 it ("validates with .all and many passing .exists constraints", function (done) {
                     testValidate (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8, x:'foo' } ],
@@ -676,6 +770,7 @@ describe ("validate", function(){
                         done
                     );
                 });
+
                 it ("rejects with passing .all and mixed passing/failing .exists", function (done) {
                     testValidate (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8, x:'foo' } ],
@@ -692,6 +787,7 @@ describe ("validate", function(){
                         done
                     );
                 });
+
                 it ("rejects with many passing .exist constraints but failing .all",
                     function (done) {
                         testValidate (
@@ -710,8 +806,37 @@ describe ("validate", function(){
                         );
                     }
                 );
+
             });
+
         });
+
+    });
+
+    describe ("anyOf", function(){
+
+        it ("matches one of several schema");
+
+        it ("fails to match any of several schema");
+
+    });
+
+    describe ("oneOf", function(){
+
+        it ("matches exactly one of several schema");
+
+        it ("fails to match any of several schema");
+
+        it ("fails to match due to too many passing schema");
+
+    });
+
+    describe ("not", function(){
+
+        it ("matches when the inverse schema fails");
+
+        it ("fails when the inverse schema matches");
+
     });
 
 });
