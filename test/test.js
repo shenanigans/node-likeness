@@ -1,3 +1,3 @@
 
 require ('./synchronous');
-require ('./asynchronous');
+// require ('./asynchronous');

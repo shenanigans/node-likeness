@@ -2208,7 +2208,7 @@ describe ("#transform", function(){
                             '.rename':      {
                                 able:           'baker'
                             },
-                            able:           { '.type':'string' },
+                            able:           { '.type':'string', '.optional':true },
                             baker:          { '.type':'number' }
                         },
                         {    // source
@@ -2798,25 +2798,105 @@ describe ("#transform", function(){
 
     describe ("anyOf", function(){
 
-        it ("transforms with one of several schema");
+        it ("transforms with one of several schema", function(){
+            testTransform (
+                { able:{
+                    able:{ '.type':'number' },
+                    '.anyOf':[
+                        { able:{ '.type':'number', '.max':3, '.add':true } },
+                        { able:{ '.type':'number', '.min':0, '.subtract':true } },
+                        { able:{ '.type':'number', '.max':60, '.multiply':true } },
+                        { able:{ '.type':'number', '.min':6, '.divide':true } }
+                    ]
+                } },
+                { able:{ able:10 } },
+                { able:{ able:5 } }
+            );
+        });
 
-        it ("fails to match any of several schema");
+        it ("fails to transform with any of several schema", function(){
+            testTransformFailure (
+                { able:{
+                    able:{ '.type':'number' },
+                        '.anyOf':[
+                        { able:{ '.type':'number', '.max':3, '.add':true } },
+                        { able:{ '.type':'number', '.min':0, '.subtract':true } },
+                        { able:{ '.type':'number', '.max':40, '.multiply':true } },
+                        { able:{ '.type':'number', '.min':6, '.divide':true } }
+                    ]
+                } },
+                { able:{ able:10 } },
+                { able:{ able:5 } },
+                { code:'FORMAT' }
+            );
+        });
 
     });
 
     describe ("oneOf", function(){
 
-        it ("transforms with one of several schema");
+        it ("transforms with one of several schema", function(){
+            testTransform (
+                { able:{
+                    able:{ '.type':'number' },
+                    '.oneOf':[
+                        { able:{ '.type':'number', '.max':3, '.add':true } },
+                        { able:{ '.type':'number', '.min':0, '.subtract':true } },
+                        { able:{ '.type':'number', '.max':60, '.multiply':true } },
+                        { able:{ '.type':'number', '.min':6, '.divide':true } }
+                    ]
+                } },
+                { able:{ able:10 } },
+                { able:{ able:5 } }
+            );
+        });
 
-        it ("fails to transform with any of several schema");
+        it ("fails to transform with any of several schema", function(){
+            testTransform (
+                { able:{
+                    able:{ '.type':'number' },
+                    '.oneOf':[
+                        { able:{ '.type':'number', '.max':3, '.add':true } },
+                        { able:{ '.type':'number', '.min':0, '.subtract':true } },
+                        { able:{ '.type':'number', '.max':40, '.multiply':true } },
+                        { able:{ '.type':'number', '.min':6, '.divide':true } }
+                    ]
+                } },
+                { able:{ able:10 } },
+                { able:{ able:5 } }
+            );
+        });
 
-        it ("fails to transform due to too many passing schema");
+        it ("fails to transform due to too many passing schema", function(){
+            testTransform (
+                { able:{
+                    able:{ '.type':'number' },
+                    '.oneOf':[
+                        { able:{ '.type':'number', '.max':3, '.add':true } },
+                        { able:{ '.type':'number', '.min':0, '.subtract':true } },
+                        { able:{ '.type':'number', '.max':60, '.multiply':true } },
+                        { able:{ '.type':'number', '.min':1, '.divide':true } }
+                    ]
+                } },
+                { able:{ able:10 } },
+                { able:{ able:5 } }
+            );
+        });
 
     });
 
     describe ("not", function(){
 
-        it ("fails to transform when the inverse schema validates");
+        it ("fails to transform when the inverse schema validates", function(){
+            testTransform (
+                { able:{
+                    able:{ '.type':'number' },
+                    '.not':{ able:{ '.type':'number', '.gt':40, '.lt':60 } }
+                } },
+                { able:{ able:10 } },
+                { able:{ able:5 } }
+            );
+        });
 
     });
 

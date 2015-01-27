@@ -115,6 +115,7 @@ var SPECIAL_KEYS = {
     '.lte':             'max',
     '.mod':             'modulo',       // modulo
     '.modulo':          'modulo',       // modulo
+    '.multiple':        'multiple',     // multiple of a value
     '.length':          'length',       // exact length match
     '.len':             'length',
     '.keys':            'length',
@@ -372,7 +373,7 @@ Likeness.prototype.export = function(){
     if (!needsChildBlock) {
         for (var i=0,j=childKeys.length; i<j; i++) {
             var key = childKeys[i];
-            output[key] = this.children[key];
+            output[key] = this.children[key].export();
         }
         return output;
     }
@@ -380,7 +381,7 @@ Likeness.prototype.export = function(){
     var children = output['.children'] = {};
     for (var i=0,j=childKeys.length; i<j; i++) {
         var key = childKeys[i];
-        children[key] = this.children[key];
+        children[key] = this.children[key].export();
     }
     return output;
 };
@@ -398,4 +399,4 @@ Likeness.prototype.transform = require ('./lib/Transform');
 Likeness.getTypeStr = getTypeStr;
 module.exports = Likeness;
 module.exports.errors = require ('./lib/errors');
-// module.helpers = require ('./helpers');
+module.exports.helpers = require ('./helpers');
