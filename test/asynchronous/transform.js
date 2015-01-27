@@ -2347,7 +2347,7 @@ describe ("#transform", function(){
                             '.rename':      {
                                 able:           'baker'
                             },
-                            able:           { '.type':'string' },
+                            able:           { '.type':'string', '.optional':true },
                             baker:          { '.type':'number' }
                         },
                         {    // source
