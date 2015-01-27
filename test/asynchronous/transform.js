@@ -40,17 +40,20 @@ function deepCompare (able, baker) {
 function testTransform (schema, source, target, goal, callback) {
     schema = new Likeness (schema);
     var sourceStr = JSON.stringify (source);
+    var targetStr = JSON.stringify (target);
     var sync = true;
     try {
-        schema.transform (source, target, function (err, val) {
+        schema.transform (source, target, function (err, result) {
             if (err)
                 return callback (new Error (JSON.stringify (err)));
             if (sync)
                 return callback (new Error ('callback fired synchronously'));
             if (sourceStr != JSON.stringify (source))
                 return callback (new Error ('transform damaged the source object'));
-            if (!deepCompare (target, goal))
-                return callback (new Error ('goal did not match - '+JSON.stringify (target)));
+            if (targetStr != JSON.stringify (target))
+                return callback (new Error ('transform damaged the target object'));
+            if (!deepCompare (result, goal))
+                return callback (new Error ('goal did not match - '+JSON.stringify (result)));
             callback();
         });
     } catch (err) {
@@ -64,7 +67,7 @@ function testTransformFailure (schema, source, target, error, callback) {
     var sourceStr = JSON.stringify (source);
     var sync = true;
     try {
-        schema.transform (source, target, function (err, val) {
+        schema.transform (source, target, function (err, result) {
             if (sync)
                 return callback (new Error ('callback fired synchronously'));
             if (sourceStr != JSON.stringify (source))
@@ -149,7 +152,7 @@ describe ("#transform", function(){
                     }
                 },
                 { // goal
-                    able:       'zero',
+                    able:       42,
                     baker:      77,
                     charlie:    {
                         able:       19,
@@ -460,7 +463,7 @@ describe ("#transform", function(){
                 );
             });
 
-            it ("fails when mandatory children are not filled", function(){
+            it ("fails when mandatory children are not filled", function (done) {
                 testTransformFailure (
                     {    // schema
                         able:       { '.type':'string' },
@@ -2293,24 +2296,48 @@ describe ("#transform", function(){
                 });
 
                 it ("clobbers keys in the source", function (done) {
-                    testTransform (
-                        {    // schema
-                            '.type':        'object',
-                            '.arbitrary':   true,
-                            '.rename':      {
-                                able:           'baker'
-                            }
+                    async.parallel ([
+                        function (callback) {
+                            testTransform (
+                                {    // schema
+                                    '.type':        'object',
+                                    '.arbitrary':   true,
+                                    '.rename':      {
+                                        able:           'baker'
+                                    }
+                                },
+                                {    // source
+                                    baker:  'nine thousand and one',
+                                    able:   9001
+                                },
+                                { }, // target
+                                {    // goal
+                                    baker:  9001
+                                },
+                                callback
+                            );
                         },
-                        {    // source
-                            able:   9001,
-                            baker:  'nine thousand and one'
-                        },
-                        { }, // target
-                        {    // goal
-                            baker:  9001
-                        },
-                        done
-                    );
+                        function (callback) {
+                            testTransform (
+                                {    // schema
+                                    '.type':        'object',
+                                    '.arbitrary':   true,
+                                    '.rename':      {
+                                        able:           'baker'
+                                    }
+                                },
+                                {    // source
+                                    able:   9001,
+                                    baker:  'nine thousand and one'
+                                },
+                                { }, // target
+                                {    // goal
+                                    baker:  'nine thousand and one'
+                                },
+                                callback
+                            );
+                        }
+                    ], done);
                 });
 
                 it ("processes keys with their new names", function (done) {

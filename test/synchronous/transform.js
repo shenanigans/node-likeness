@@ -39,25 +39,35 @@ function deepCompare (able, baker) {
 function testTransform (schema, source, target, goal) {
     schema = new Likeness (schema);
     var sourceStr = JSON.stringify (source);
+    var targetStr = JSON.stringify (target);
+    var result;
     try {
-        schema.transform (source, target);
+        result = schema.transform (source, target);
     } catch (err) {
         if (err instanceof TransformError)
             throw new Error ('failed with err '+JSON.stringify (err));
         throw err;
     }
-    if (!deepCompare (target, goal))
-        throw new Error ('goal did not match - '+JSON.stringify (target));
     if (sourceStr != JSON.stringify (source))
         throw new Error ('transform damaged the source object');
+    if (targetStr != JSON.stringify (target))
+        throw new Error ('transform damaged the target object');
+    if (!deepCompare (result, goal))
+        throw new Error ('goal did not match - '+JSON.stringify (result));
 }
 
 function testTransformFailure (schema, source, target, error) {
     schema = new Likeness (schema);
     var sourceStr = JSON.stringify (source);
+    var targetStr = JSON.stringify (target);
     try {
         schema.transform (source, target);
     } catch (err) {
+        if (sourceStr != JSON.stringify (source))
+            throw new Error ('transform damaged the source object');
+        if (targetStr != JSON.stringify (target))
+            throw new Error ('transform damaged the target object');
+
         if (error) {
             for (var key in error)
                 if (!Object.hasOwnProperty.call (err, key) || err[key] !== error[key]) {
@@ -71,10 +81,6 @@ function testTransformFailure (schema, source, target, error) {
                     );
                 }
         }
-
-        if (sourceStr != JSON.stringify (source))
-            throw new Error ('transform damaged the source object');
-
         return;
     }
     throw new Error ('transform completed erroneously');
@@ -92,10 +98,10 @@ describe ("#transform", function(){
                 { // source
                     able:       42,
                     baker:      'BAKER',
-                    charlie:    /CHARLIE/,
+                    charlie:    'charlie',
                     dog:        {
                         able:       9001,
-                        baker:      /BAKER/
+                        baker:      'baker'
                     },
                     easy:       [ 'number nine', 'number nine', 'number nine', 'number nine' ]
                 },
@@ -105,10 +111,10 @@ describe ("#transform", function(){
                 { // goal
                     able:       42,
                     baker:      'BAKER',
-                    charlie:    /CHARLIE/,
+                    charlie:    'charlie',
                     dog:        {
                         able:       9001,
-                        baker:      /BAKER/
+                        baker:      'baker'
                     },
                     easy:       [ 'number nine', 'number nine', 'number nine', 'number nine' ]
                 }
@@ -137,7 +143,7 @@ describe ("#transform", function(){
                     }
                 },
                 { // goal
-                    able:       'zero',
+                    able:       42,
                     baker:      77,
                     charlie:    {
                         able:       19,
@@ -2191,12 +2197,29 @@ describe ("#transform", function(){
                             }
                         },
                         {    // source
+                            baker:  'nine thousand and one',
+                            able:   9001
+                        },
+                        { }, // target
+                        {    // goal
+                            baker:  9001
+                        }
+                    );
+                    testTransform (
+                        {    // schema
+                            '.type':        'object',
+                            '.arbitrary':   true,
+                            '.rename':      {
+                                able:           'baker'
+                            }
+                        },
+                        {    // source
                             able:   9001,
                             baker:  'nine thousand and one'
                         },
                         { }, // target
                         {    // goal
-                            baker:  9001
+                            baker:  'nine thousand and one'
                         }
                     );
                 });
@@ -2796,108 +2819,108 @@ describe ("#transform", function(){
 
     });
 
-    describe ("anyOf", function(){
+    // describe ("anyOf", function(){
 
-        it ("transforms with one of several schema", function(){
-            testTransform (
-                { able:{
-                    able:{ '.type':'number' },
-                    '.anyOf':[
-                        { able:{ '.type':'number', '.max':3, '.add':true } },
-                        { able:{ '.type':'number', '.min':0, '.subtract':true } },
-                        { able:{ '.type':'number', '.max':60, '.multiply':true } },
-                        { able:{ '.type':'number', '.min':6, '.divide':true } }
-                    ]
-                } },
-                { able:{ able:10 } },
-                { able:{ able:5 } }
-            );
-        });
+    //     it ("transforms with one of several schema", function(){
+    //         testTransform (
+    //             { able:{
+    //                 able:{ '.type':'number' },
+    //                 '.anyOf':[
+    //                     { able:{ '.type':'number', '.max':3, '.add':true } },
+    //                     { able:{ '.type':'number', '.min':0, '.subtract':true } },
+    //                     { able:{ '.type':'number', '.max':60, '.multiply':true } },
+    //                     { able:{ '.type':'number', '.min':6, '.divide':true } }
+    //                 ]
+    //             } },
+    //             { able:{ able:10 } },
+    //             { able:{ able:5 } }
+    //         );
+    //     });
 
-        it ("fails to transform with any of several schema", function(){
-            testTransformFailure (
-                { able:{
-                    able:{ '.type':'number' },
-                        '.anyOf':[
-                        { able:{ '.type':'number', '.max':3, '.add':true } },
-                        { able:{ '.type':'number', '.min':0, '.subtract':true } },
-                        { able:{ '.type':'number', '.max':40, '.multiply':true } },
-                        { able:{ '.type':'number', '.min':6, '.divide':true } }
-                    ]
-                } },
-                { able:{ able:10 } },
-                { able:{ able:5 } },
-                { code:'FORMAT' }
-            );
-        });
+    //     it ("fails to transform with any of several schema", function(){
+    //         testTransformFailure (
+    //             { able:{
+    //                 able:{ '.type':'number' },
+    //                     '.anyOf':[
+    //                     { able:{ '.type':'number', '.max':3, '.add':true } },
+    //                     { able:{ '.type':'number', '.min':0, '.subtract':true } },
+    //                     { able:{ '.type':'number', '.max':40, '.multiply':true } },
+    //                     { able:{ '.type':'number', '.min':6, '.divide':true } }
+    //                 ]
+    //             } },
+    //             { able:{ able:10 } },
+    //             { able:{ able:5 } },
+    //             { code:'FORMAT' }
+    //         );
+    //     });
 
-    });
+    // });
 
-    describe ("oneOf", function(){
+    // describe ("oneOf", function(){
 
-        it ("transforms with one of several schema", function(){
-            testTransform (
-                { able:{
-                    able:{ '.type':'number' },
-                    '.oneOf':[
-                        { able:{ '.type':'number', '.max':3, '.add':true } },
-                        { able:{ '.type':'number', '.min':0, '.subtract':true } },
-                        { able:{ '.type':'number', '.max':60, '.multiply':true } },
-                        { able:{ '.type':'number', '.min':6, '.divide':true } }
-                    ]
-                } },
-                { able:{ able:10 } },
-                { able:{ able:5 } }
-            );
-        });
+    //     it ("transforms with one of several schema", function(){
+    //         testTransform (
+    //             { able:{
+    //                 able:{ '.type':'number' },
+    //                 '.oneOf':[
+    //                     { able:{ '.type':'number', '.max':3, '.add':true } },
+    //                     { able:{ '.type':'number', '.min':0, '.subtract':true } },
+    //                     { able:{ '.type':'number', '.max':60, '.multiply':true } },
+    //                     { able:{ '.type':'number', '.min':6, '.divide':true } }
+    //                 ]
+    //             } },
+    //             { able:{ able:10 } },
+    //             { able:{ able:5 } }
+    //         );
+    //     });
 
-        it ("fails to transform with any of several schema", function(){
-            testTransform (
-                { able:{
-                    able:{ '.type':'number' },
-                    '.oneOf':[
-                        { able:{ '.type':'number', '.max':3, '.add':true } },
-                        { able:{ '.type':'number', '.min':0, '.subtract':true } },
-                        { able:{ '.type':'number', '.max':40, '.multiply':true } },
-                        { able:{ '.type':'number', '.min':6, '.divide':true } }
-                    ]
-                } },
-                { able:{ able:10 } },
-                { able:{ able:5 } }
-            );
-        });
+    //     it ("fails to transform with any of several schema", function(){
+    //         testTransform (
+    //             { able:{
+    //                 able:{ '.type':'number' },
+    //                 '.oneOf':[
+    //                     { able:{ '.type':'number', '.max':3, '.add':true } },
+    //                     { able:{ '.type':'number', '.min':0, '.subtract':true } },
+    //                     { able:{ '.type':'number', '.max':40, '.multiply':true } },
+    //                     { able:{ '.type':'number', '.min':6, '.divide':true } }
+    //                 ]
+    //             } },
+    //             { able:{ able:10 } },
+    //             { able:{ able:5 } }
+    //         );
+    //     });
 
-        it ("fails to transform due to too many passing schema", function(){
-            testTransform (
-                { able:{
-                    able:{ '.type':'number' },
-                    '.oneOf':[
-                        { able:{ '.type':'number', '.max':3, '.add':true } },
-                        { able:{ '.type':'number', '.min':0, '.subtract':true } },
-                        { able:{ '.type':'number', '.max':60, '.multiply':true } },
-                        { able:{ '.type':'number', '.min':1, '.divide':true } }
-                    ]
-                } },
-                { able:{ able:10 } },
-                { able:{ able:5 } }
-            );
-        });
+    //     it ("fails to transform due to too many passing schema", function(){
+    //         testTransform (
+    //             { able:{
+    //                 able:{ '.type':'number' },
+    //                 '.oneOf':[
+    //                     { able:{ '.type':'number', '.max':3, '.add':true } },
+    //                     { able:{ '.type':'number', '.min':0, '.subtract':true } },
+    //                     { able:{ '.type':'number', '.max':60, '.multiply':true } },
+    //                     { able:{ '.type':'number', '.min':1, '.divide':true } }
+    //                 ]
+    //             } },
+    //             { able:{ able:10 } },
+    //             { able:{ able:5 } }
+    //         );
+    //     });
 
-    });
+    // });
 
-    describe ("not", function(){
+    // describe ("not", function(){
 
-        it ("fails to transform when the inverse schema validates", function(){
-            testTransform (
-                { able:{
-                    able:{ '.type':'number' },
-                    '.not':{ able:{ '.type':'number', '.gt':40, '.lt':60 } }
-                } },
-                { able:{ able:10 } },
-                { able:{ able:5 } }
-            );
-        });
+    //     it ("fails to transform when the inverse schema validates", function(){
+    //         testTransform (
+    //             { able:{
+    //                 able:{ '.type':'number' },
+    //                 '.not':{ able:{ '.type':'number', '.gt':40, '.lt':60 } }
+    //             } },
+    //             { able:{ able:10 } },
+    //             { able:{ able:5 } }
+    //         );
+    //     });
 
-    });
+    // });
 
 });
