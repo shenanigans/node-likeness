@@ -139,6 +139,7 @@ var SPECIAL_KEYS = {
     '.value':           'value',        // exact value match
     '.anyValue':        'anyValue',     // exact value match against Array of candidates
     '.sequence':        'sequence',     // an Array of schema which must match sequentially
+    '.recurse':         'recurse',      // recursively backref an ancestral schema
 
     //================================== Transforms
     //      These don't evaluate documents, they transform valid documents
