@@ -21,12 +21,5 @@
                 }
             }
         }
-    },
-    "properties":   {
-        "cheddar":      {
-            "properties":   {
-                "cheese":       { "$ref":"node-likeness/testSchemata/foo/bravo#subschema" }
-            }
-        }
     }
 }
