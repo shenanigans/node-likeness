@@ -11,7 +11,7 @@
     "subschema":    {
         "otherLevel":   {
             "anotherLevel": {
-                "id":           "intense#/demonic/attacks",
+                "id":           "intense#demonic/attacks",
                 "properties":   {
                     "none":         {
                         "properties":   {
