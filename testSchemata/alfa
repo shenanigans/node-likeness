@@ -1,0 +1,35 @@
+{
+    "$schema":      "http://json-schema.org/schema",
+    "id":           "http://shenanigans.github.io/node-likeness/testSchemata/alfa#",
+    "definitions":  {
+        "plaster":      {
+            "properties":   {
+                "foo":          { "$ref":"node-likeness/testSchemata/bravo" }
+            }
+        },
+        "imported":     { "$ref":"http://json-schema.org/card" }
+    },
+    "subschema":    {
+        "otherLevel":   {
+            "anotherLevel": {
+                "id":           "intense#/demonic/attacks",
+                "properties":   {
+                    "none":         {
+                        "properties":   {
+                            "never":        { "$ref":"#/definitions/plaster" }
+                        }
+                    },
+                    "more":         { "$ref":"#/subschema" }
+                }
+            }
+        }
+    },
+    "properties":   {
+        "cheddar":      {
+            "properties":   {
+                "cheese":       { "$ref":"node-likeness/testSchemata/foo/alfa#subschema" }
+            }
+        },
+        "popcorn":      { "$ref":"intense#demonic/attacks" }
+    }
+}

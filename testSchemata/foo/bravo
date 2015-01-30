@@ -1,0 +1,11 @@
+{
+    "$schema":      "http://json-schema.org/schema",
+    "subschema":    {
+        "otherLevel":   {
+            "anotherLevel": {
+                "id":           "intense#/demonic/attacks",
+                "properties":   {}
+            }
+        }
+    }
+}
