@@ -4,7 +4,7 @@
     "definitions":  {
         "plaster":      {
             "properties":   {
-                "foo":          { "$ref":"node-likeness/testSchemata/bravo" }
+                "foo":          { "$ref":"node-likeness/testSchemata/foo/bravo" }
             }
         }
     },
