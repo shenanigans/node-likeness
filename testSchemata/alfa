@@ -12,15 +12,15 @@
     "subschema":    {
         "otherLevel":   {
             "anotherLevel": {
-                "id":           "intense#demonic/attacks",
-                "properties":   {
-                    "none":         {
-                        "properties":   {
-                            "never":        { "$ref":"#/definitions/plaster" }
-                        }
-                    },
-                    "more":         { "$ref":"#/subschema" }
-                }
+                "id":           "intense#demonic/attacks"
+            },
+            "properties":   {
+                "none":         {
+                    "properties":   {
+                        "never":        { "$ref":"#/definitions/plaster" }
+                    }
+                },
+                "more":         { "$ref":"#/subschema" }
             }
         }
     },
