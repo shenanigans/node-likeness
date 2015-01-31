@@ -47,18 +47,24 @@ var ARR_CONVERSIONS = {
     // ================================================== Extensions
 };
 
+var SKIP_STEPS = {};
+for (var key in SCHEMA_CONVERSIONS) SKIP_STEPS[key] = true;
+for (var key in MAP_CONVERSIONS) SKIP_STEPS[key] = true;
+for (var key in ARR_CONVERSIONS) SKIP_STEPS[key] = true;
 
 /**     @property/Function fromJSONSchema
     Convert a JSON Schema spec to a non-canonical likeness schema.
 @argument/Object schema
     JSON Schema document
 */
-function fromJSONSchema (schema, callback, context) {
+function fromJSONSchema (schema, callback, context, path) {
     context = context || schema;
+    path = path || '#';
 
     var output = { '.optional':true };
     var keys = Object.keys (schema);
     async.each (keys, function (key, callback) {
+        if (key == '$ref') console.log ('ref', schema[key]);
         var subschema = schema[key];
 
         if (Object.hasOwnProperty.call (SIMPLE_CONVERSIONS, key)) {
@@ -71,7 +77,7 @@ function fromJSONSchema (schema, callback, context) {
                 if (err) return callback (err);
                 output[SCHEMA_CONVERSIONS[key]] = sublikeness;
                 callback();
-            }, context);
+            }, context, path);
 
         if (Object.hasOwnProperty.call (MAP_CONVERSIONS, key)) {
             var converted = {};
@@ -80,7 +86,7 @@ function fromJSONSchema (schema, callback, context) {
                     if (err) return callback (err);
                     converted[subkey] = sublikeness;
                     callback();
-                }, context);
+                }, context, path+'/'+key+'/'+subkey);
             }, function (err) {
                 if (err) return callback (err);
                 output[MAP_CONVERSIONS[key]] = converted;
@@ -95,7 +101,7 @@ function fromJSONSchema (schema, callback, context) {
                     if (err) return callback (err);
                     converted[subI] = sublikeness;
                     callback();
-                }, context);
+                }, context, path);
             }, function (err) {
                 if (err) return callback (err);
                 output[ARR_CONVERSIONS[key]] = converted;
@@ -112,7 +118,7 @@ function fromJSONSchema (schema, callback, context) {
                         if (err) return callback (err);
                         converted[subI] = sublikeness;
                         callback();
-                    }, context);
+                    }, context, path);
                 }, function (err) {
                     if (err) return callback (err);
                     output['.sequence'] = converted;
@@ -125,12 +131,25 @@ function fromJSONSchema (schema, callback, context) {
                 if (err) return callback (err);
                 output['.all'] = sublikeness;
                 callback();
-            }, context);
+            }, context, path);
         }
 
         if (key == '$ref') {
+            console.log ('----------- refrefref '+path);
             // reference to another schema
             var info = url.parse (subschema);
+            if (path.slice (0, info.hash.length) != info.hash)
+                throw new Error ('non-recursive reference detected');
+
+            var middlePath = path.slice (info.hash.length).split ('/');
+            for (var i=0, j=middlePath.length; i<j; i++) {
+                var step = middlePath[i];
+                if (Object.hasOwnProperty.call (SKIP_STEPS, step)) {
+                    middlePath.splice (i);
+                    i--; j--;
+                }
+            }
+            output['.recurse'] = middlePath.length;
             return callback();
         }
 

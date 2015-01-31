@@ -367,21 +367,17 @@ JSContext.prototype.compile = function (parent, schema, callback, chain) {
                  && ( !refPath.path || parent && refPath.path == parent.path )
                 ) {
                     // it's local, but is it recursive?
-                    var outerPath;
-                    if (parent)
-                        outerPath = url.parse ('https://'+parent.host+parent.path+path);
-                    else
-                        outerPath = url.parse (path);
+                    var fullPath;
+                    fullPath = url.parse (
+                        'https://' + parent.host + parent.path + path
+                    );
 
                     if (
-                        outerPath.hash
-                     && outerPath.hash.length > refPath.hash.length
-                     && outerPath.hash.slice (0, refPath.hash.length) == refPath.hash
-                    ) { // it's recursive!
-                        return process.nextTick (function(){
-                            callback (undefined, { $ref:level.$ref });
-                        });
-                    }
+                        fullPath.hash
+                     && fullPath.hash.length > refPath.hash.length
+                     && fullPath.hash.slice (0, refPath.hash.length) == refPath.hash
+                    ) // it's recursive!
+                        return callback (undefined, { $ref:level.$ref });
                 }
 
                 var pseudoParent = {
@@ -436,7 +432,7 @@ JSContext.prototype.compile = function (parent, schema, callback, chain) {
                 return callback();
             }
             compileLevel (
-                path,
+                isObj ? path + '/' + keys[sublevelI] : path,
                 sublevel,
                 function (err, compiledSublevel) {
                     if (err) return callback (err);
@@ -465,16 +461,18 @@ JSContext.prototype.compile = function (parent, schema, callback, chain) {
             compilation[keyI] = val;
             return callback();
         }
-        compileLevel ((parent.hash||'#')+key, val, function (err, compiledLevel) {
+        compileLevel ((parent.hash||'#')+'/'+key, val, function (err, compiledLevel) {
             if (err) return callback (err);
             compilation[keyI] = compiledLevel;
             callback();
         });
     }, function (err) {
-        if (err) return process.nextTick (function(){ callback (err); });
+        // if (err) return process.nextTick (function(){ callback (err); });
+        if (err) return callback (err);
         var output = {};
         for (var i=0,j=compilation.length; i<j; i++)
             output[keys[i]] = compilation[i];
-        process.nextTick (function(){ callback (undefined, output); });
+        // process.nextTick (function(){ callback (undefined, output); });
+        callback (undefined, output);
     });
 };
