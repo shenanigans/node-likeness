@@ -27,9 +27,16 @@
     "properties":   {
         "cheddar":      {
             "properties":   {
-                "cheese":       { "$ref":"node-likeness/testSchemata/foo/alfa#subschema" }
+                "cheese":       { "$ref":"node-likeness/testSchemata/foo/alfa#/subschema" }
             }
         },
-        "popcorn":      { "$ref":"intense#demonic/attacks" }
+        "popcorn":      { "$ref":"intense#demonic/attacks" },
+        "recursion":    {
+            "foo":         {
+                "bar:"          {
+                    "$ref":         "#/properties/recursion/foo"
+                }
+            }
+        }
     }
 }

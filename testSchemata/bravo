@@ -25,7 +25,7 @@
     "properties":   {
         "cheddar":      {
             "properties":   {
-                "cheese":       { "$ref":"node-likeness/testSchemata/foo/bravo#subschema" }
+                "cheese":       { "$ref":"node-likeness/testSchemata/foo/bravo#/subschema" }
             }
         },
         "popcorn":      { "$ref":"intense#demonic/attacks" }
