@@ -32,8 +32,8 @@
         },
         "popcorn":      { "$ref":"intense#demonic/attacks" },
         "recursion":    {
-            "foo":         {
-                "bar:"          {
+            "foo":          {
+                "bar":          {
                     "$ref":         "#/properties/recursion/foo"
                 }
             }
