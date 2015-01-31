@@ -8,20 +8,157 @@ var async = require ('async');
 
 /**     @class Configuration
 
+@String #title
+    A non-functional constraint provided to support the JSON Schema specification.
+@String #description
+    A non-functional constraint provided to support the JSON Schema specification.
+@Array[likeness] #anyOf
+    Validate if any one of an Array of Likenesses validates. When transforming, the first Likeness
+    to complete the transform successfully is used.
+@Array[likeness] #oneOf
+     * *synonyms:* `exactlyOne`
+
+    Validate if one and **only** one of an Array of Likenesses validates. When transforming, every
+    Likeness is applied. One and only one must complete successfully.
+@likeness #not
+    Validate if another Likeness does not. When transforming, the final value after all transforms
+    have been applied must not be validated by this Likeness.
 @String #type
+    Restrict the document to a specific JSON type. Acceptable values are:
+     * `"object"`
+     * `"array"`
+     * `"string"`
+     * `"number"`
+     * `"integer"`
+@Boolean #adHoc
+     * *applies to type:* `object`
+     * *synonyms:* `arbitrary`
+
+    Accept unknown key names when no validator for unknown keys can be found.
+@Boolean #tolerant
+     * *applies to type:* `object`
+
+    When transforming, ignore unkown keys.
+@Boolean #optional
+     * *applies to type:* direct children of an `object`
+
+    Whether this document is required to exist on the parent document.
+@Boolean #unique
+     * *applies to type:* `object`, `array`
+
+    Does not validate if any children or elements of the document are duplicates. When transforming,
+    the constraint is enforced but enforcement will not cause the transform to fail.
+@Function #key
+     * *applies to type:* `object`
+     * *synonyms:* `keyTest`
+@Object #children
+    If a fixed child name begins with a period, this property is used to insulate it from the
+    operator namespace.
+@Object #matchChildren
+     * *applies to type:* `object`
+
+    Child Likenesses flexibly matched to keys by regular expressions. Child matches are executed in
+    documented order. When transforming, the first matching regular expression is used.
+@Number #min
+     * *synonyms:* `minKeys`, `minVals`, `minValues`, `greaterOrEqual`, `gte`
+
+    The minimum value, string length or child or element count for the document.
+@Number #exclusiveMin
+     * *applies to type:* `number`, `integer`
+     * *synonyms:* `greaterThan`, `gt`
+
+    Exclusive minimum value.
+@Number #max
+     * *synonyms:* `maxKeys`, `maxVals`, `maxValues`, `lessOrEqual`, `lte`
+
+    The maximum value, string length or child or element count for the document.
+@Number #exclusiveMax
+     * *applies to type:* `number`, `integer`
+     * *synonyms:* `lessThan`, `lt`
+
+    Exclusive maximum value.
+@Array #modulo
+     * *applies to type:* `number`, `integer`
+     * *synonyms:* `mod`
+
+    Validates if the value modulo a given value is equal to another given value. Formatted as
+    `[ divisor, remainder ]`.
+@Number #multiple
+     * *applies to type:* `number`, `integer`
+
+    Validates if the remainder of division by the given value is exactly zero.
+@Number #length
+     * *applies to type:* `object`, `array`, `string`
+     * *synonyms:* `len`, `keys`, `vals`, `values`
+
+    Validates if the string length or child or element count is exactly equal to the given value.
+@String|RegExp #match
+     * *applies to type:* `string`
+     * *synonyms:* `regex`, `regexp`
+
+    Validates if the string matches the provided regular expression.
 @Function #eval
     Simply test document values with a [Function]() call. If the [async](Configuration#async)
-    constraint is configured, a callback will be passed to the evaluation function.
-    @argument/Object|Array|String|Number|Boolean value
+    constraint is configured, a callback will be passed to the evaluation function and the return
+    value will be ignored.
+    @argument document
+    @callback
+        @argument/Error err
+            @optional
+            Invalidates the document and packs this Error into the returned [ValidationError](
+            likeness.ValidationError)
+        @returns
+    @returns isValid
+        In synchronous validation mode, return a truthy value to validate the document.
+@Boolean #async
+    Indicate that all functional constraints on this Likeness are dedicated async Functions. Forces
+    the entire ancestor chain to use asynchronous execution mode exclusively.
+@Array[likeness] #exists
+     * *applies to type:* `object`, `array`
+     * *synonyms:* `thereExists`
+
+    For each element in this constraint, at least one child or element of the document must
+    validate. If the element likeness has a [times constraint](.Configuration#times), more than one
+    validating child or element my be required to validate the `exists` constraint.
+@likeness #all
+     * *applies to type:* `object`, `array`
+     * *synonyms:* `forAll`, `every`, `forEvery`
+
+    Every child or element of the document my by validated by this Likeness.
+@likess #extras
+     * *applies to type:* `object`, `array`
+     * *synonyms:* `extra`
+
+    Children and elements not affected by any other constraint will be validated and transformed by
+    this Likeness.
+@member value
+    Provide a document which all valid documents must replicate exactly.
+@Array #anyValue
+    Any Array of possible values. Validating documents must exactly match one of these values.
+@Array[likeness] #sequence
+     * *applies to type:* `array`
+
+    Validations and transforms for each element of the document are handled by their sister elements
+    in this constraint. If the sequence runs out of Likenesses before the document, validations and
+    transforms will fail unless an [extras](.Coonfiguration#extras) constraint is available.
+@Number|String #recurse
+    Recursive reference, as either a Number of levels or unix-like backref String composed of any
+    number of concatenated `"../"` sequences. Replaces the Likeness in this position with an
+    ancestral likeness.
+@Function #transform
+    Manually transform the document with a Function. Affected by the [async property]
+    (.Configuration#async).
+    @argument document
     @callback
         @argument/Error|undefined err
-        @argument/Boolean|undefined isValid
-@Boolean #async
-@Boolean #optional
-    If `optional` is set `true`, the value `undefined` is always considered to be a valid document.
-@Function #transform
-@Object|Array|String|Number|Boolean #value
-    Define a value which all valid documents must replicate exactly.
+            Reject the transform and pack this Error into the returned [ValidationError]
+            (likeness.ValidationError)
+        @argument newValue
+            The transformed value, or `undefined` to drop the document from its parent (if any).
+        @returns
+    @returns newValue
+        In synchronous transform mode, return the transformed value, or `undefined` to drop the
+        document from its parent (if any).
 */
 /**     @class .Configuration.Object
     @super Configuration
@@ -139,6 +276,7 @@ var SPECIAL_KEYS = {
     '.value':           'value',        // exact value match
     '.anyValue':        'anyValue',     // exact value match against Array of candidates
     '.sequence':        'sequence',     // an Array of schema which must match sequentially
+    '.recurse':         'recurse',      // recursive backref
 
     //================================== Transforms
     //      These don't evaluate documents, they transform valid documents
@@ -175,8 +313,9 @@ var SPECIAL_KEYS = {
 };
 
 
-var Likeness = function (schema, path) {
+var Likeness = function (schema, path, parent) {
     this.path = path;
+    this.parent = parent;
 
     // convert any nodes which are not of Configuration type to their Configuration representations
     var type = getTypeStr (schema);
@@ -221,7 +360,8 @@ var Likeness = function (schema, path) {
                     else
                         this.children[child] = new Likeness (
                             addChildren[child],
-                            path ? path + '.' + key : key
+                            path ? path + '.' + key : key,
+                            this
                         );
                 continue;
             }
@@ -239,7 +379,8 @@ var Likeness = function (schema, path) {
         else {
             var newChild = new Likeness (
                 schema[key],
-                path ? path + '.' + key : key
+                path ? path + '.' + key : key,
+                this
             );
             if (newChild.isAsync)
                 this.isAsync = true;
@@ -254,32 +395,32 @@ var Likeness = function (schema, path) {
     // convert special constriants to Likeness instances
     if (this.constraints.anyOf)
         for (var i in this.constraints.anyOf) {
-            this.constraints.anyOf[i] = new Likeness (this.constraints.anyOf[i]);
+            this.constraints.anyOf[i] = new Likeness (this.constraints.anyOf[i], path, this);
             if (this.constraints.anyOf[i].isAsync)
                 this.isAsync = true;
         }
 
     if (this.constraints.oneOf)
         for (var i in this.constraints.oneOf) {
-            this.constraints.oneOf[i] = new Likeness (this.constraints.oneOf[i]);
+            this.constraints.oneOf[i] = new Likeness (this.constraints.oneOf[i], path, this);
             if (this.constraints.oneOf[i].isAsync)
                 this.isAsync = true;
         }
 
     if (this.constraints.not) {
-        this.constraints.not = new Likeness (this.constraints.not);
+        this.constraints.not = new Likeness (this.constraints.not, path, this);
         if (this.constraints.not.isAsync)
             this.isAsync = true;
     }
 
     if (this.constraints.all) {
-        this.constraints.all = new Likeness (this.constraints.all);
+        this.constraints.all = new Likeness (this.constraints.all, path, this);
         if (this.constraints.all.isAsync)
             this.isAsync = true;
     }
 
     if (this.constraints.extras) {
-        this.constraints.extras = new Likeness (this.constraints.extras);
+        this.constraints.extras = new Likeness (this.constraints.extras, path, this);
         if (this.constraints.extras.isAsync)
             this.isAsync = true;
     }
@@ -287,12 +428,12 @@ var Likeness = function (schema, path) {
     if (this.constraints.exists) {
         if (getTypeStr (this.constraints.exists) == 'array')
             for (var i in this.constraints.exists) {
-                this.constraints.exists[i] = new Likeness (this.constraints.exists[i]);
+                this.constraints.exists[i] = new Likeness (this.constraints.exists[i], path, this);
                 if (this.constraints.exists[i].isAsync)
                     this.isAsync = true;
             }
         else {
-            this.constraints.exists = [ new Likeness (this.constraints.exists) ];
+            this.constraints.exists = [ new Likeness (this.constraints.exists, path, this) ];
             if (this.constraints.exists[0].isAsync)
                 this.isAsync = true;
         }
@@ -302,7 +443,8 @@ var Likeness = function (schema, path) {
         for (var i in this.constraints.sequence) {
             var newChild = new Likeness (
                 this.constraints.sequence[i],
-                this.path ? this.path + '.' + i : String(i)
+                this.path ? this.path + '.' + i : String(i),
+                this
             );
             if (newChild.isAsync)
                 this.isAsync = true;
@@ -311,7 +453,9 @@ var Likeness = function (schema, path) {
 
     if (this.constraints.keyTest) {
         var newChild = new Likeness (
-            this.constraints.keyTest
+            this.constraints.keyTest,
+            path,
+            this
         );
         if (newChild.isAsync)
             this.isAsync = true;
@@ -328,13 +472,29 @@ var Likeness = function (schema, path) {
     if (this.constraints.matchChildren) {
         var newMatchers = [];
         for (var pattern in this.constraints.matchChildren) {
-            var subschema = new Likeness (this.constraints.matchChildren[pattern]);
+            var subschema = new Likeness (this.constraints.matchChildren[pattern], path, this);
             subschema.pattern = new RegExp (pattern);
             if (subschema.isAsync)
                 this.isAsync = true;
             newMatchers.push (subschema);
         }
         this.constraints.matchChildren = newMatchers;
+    }
+
+    if (this.constraints.recurse) {
+        var depth;
+        if (typeof this.constraints.recurse == 'string')
+            depth = this.constraints.recurse.split ('../').length - 1;
+        else
+            depth = this.constraints.recurse;
+
+        var pointer = this;
+        for (var i=0; i<depth; i++) {
+            pointer = pointer.parent;
+            if (!pointer)
+                throw new Error ('unable to recurse - too deep');
+        }
+        this.constraints.recurse = pointer;
     }
 };
 
@@ -343,7 +503,7 @@ var Likeness = function (schema, path) {
     Create a JSON representation of this schema, with several caveats which may distinguish it from
     the schema used to instantiate this Likeness. These are:
      * all special key names are converted from synonyms to canonical names (e.g. `.child` becomes
-        `.children` )
+        `.children`)
      * the `.children` key is **only** used if a child key begins with a period.
 @returns/Object
     A canonical JSON representation of this schema.

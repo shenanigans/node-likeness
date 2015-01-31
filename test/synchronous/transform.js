@@ -88,6 +88,57 @@ function testTransformFailure (schema, source, target, error) {
 
 describe ("#transform", function(){
 
+    it ("transforms with a recursive schema", function(){
+        testTransform (
+            { able:{ '.optional':true, '.recurse':1 }, baker:{ '.type':'number', '.add':true } },
+            {
+                able:   {
+                    able:   {
+                        able:   {
+                            able:   {
+                                baker:  10
+                            },
+                            baker:  10
+                        },
+                        baker:  10
+                    },
+                    baker:  10
+                },
+                baker:  10
+            },
+            {
+                able:   {
+                    able:   {
+                        able:   {
+                            able:   {
+                                baker:  1
+                            },
+                            baker:  2
+                        },
+                        baker:  3
+                    },
+                    baker:  4
+                },
+                baker:  5
+            },
+            {
+                able:   {
+                    able:   {
+                        able:   {
+                            able:   {
+                                baker:  11
+                            },
+                            baker:  12
+                        },
+                        baker:  13
+                    },
+                    baker:  14
+                },
+                baker:  15
+            }
+        );
+    });
+
     describe (".arbitrary", function(){
 
         it ('blindly duplicates an object with an arbitrary schema', function(){

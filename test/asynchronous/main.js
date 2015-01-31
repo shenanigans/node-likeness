@@ -1,8 +1,8 @@
 
 describe ("asynchronous", function(){
-    this.timeout (25);
+    // this.timeout (25);
     require ('./validate');
     // require ('./report');
     require ('./transform');
-    // require ('./mongoloids');
+    require ('./mongoloids');
 });

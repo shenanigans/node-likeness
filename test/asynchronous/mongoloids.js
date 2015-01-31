@@ -39,6 +39,7 @@ function deepCompare (able, baker) {
 
 var collection;
 before (function (done) {
+    this.timeout (500);
     var dbsrv = new Mongo.Server ('127.0.0.1', 27017);
     var db = new Mongo.Db (
         'test-likeness',
@@ -57,7 +58,7 @@ before (function (done) {
             }
 
             collection = col;
-            collection.remove ({}, { w:1, multi:true }, function (err) {
+            collection.remove ({}, { w:1, fsync:true }, function (err) {
                 if (err) {
                     console.log ('could not clear MongoDB test collection');
                     return process.exit (1);
@@ -79,7 +80,7 @@ function testMongoloid (schema, document, fragment, callback, empty) {
         var mongoloid = {};
         var sync = true;
         try {
-            schema.transform (fragment, document, mongoloid, function (err, setValue) {
+            schema.transform (fragment, document, mongoloid, function (err, result) {
                 if (err) return callback (err);
 
                 if (sync)
@@ -97,10 +98,12 @@ function testMongoloid (schema, document, fragment, callback, empty) {
                     if (err) return callback (err);
                     collection.findOne ({ _id:_id }, function (err, mongoResult) {
                         if (err) return callback (err);
-                        if (!deepCompare (document, mongoResult))
+                        if (!deepCompare (result, mongoResult)) {
+                            console.log (result);
                             return callback (new Error (
                                 'mongoloid result did not match - '+JSON.stringify (mongoResult)
                             ));
+                        }
                         callback();
                     });
                 });

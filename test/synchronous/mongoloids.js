@@ -77,8 +77,9 @@ function testMongoloid (schema, document, fragment, callback, empty) {
         if (err) return callback (err);
         schema = new Likeness (schema);
         var mongoloid = {};
+        var result;
         try {
-            schema.transform (fragment, document, mongoloid);
+            result = schema.transform (fragment, document, mongoloid);
         } catch (err) {
             callback (err);
         }
@@ -91,14 +92,16 @@ function testMongoloid (schema, document, fragment, callback, empty) {
         }
 
         if (empty)
-            return callback (new Error ('mongoloid was supposed to be empty'));
+            return callback (new Error (
+                'mongoloid was supposed to be empty - got '+JSON.stringify (mongoloid)
+            ));
 
         collection.update ({ _id:_id }, mongoloid, function (err) {
             if (err) return callback (err);
             collection.findOne ({ _id:_id }, function (err, mongoResult) {
                 if (err) return callback (err);
-                if (!deepCompare (document, mongoResult)) {
-                    console.log (document);
+                if (!deepCompare (result, mongoResult)) {
+                    console.log (result);
                     return callback (new Error (
                         'mongoloid result did not match - '+JSON.stringify (mongoResult)
                     ));

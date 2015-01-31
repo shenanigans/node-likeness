@@ -37,7 +37,7 @@ function testValidate (doc, schema, shouldPass, callback) {
 
 describe ("validate", function(){
 
-    describe (".arbitrary", function(){
+    describe ("basic structures", function(){
 
         it ("gets upset about extraneous properties, by default", function (done) {
             testValidate (
@@ -57,10 +57,6 @@ describe ("validate", function(){
             );
         });
 
-    });
-
-    describe (".optional", function(){
-
         it ("gets upset about missing properties", function (done) {
             testValidate (
                 { able:4, charlie:3 },
@@ -77,6 +73,56 @@ describe ("validate", function(){
                 true,
                 done
             );
+        });
+
+        it ("resolves a recursive schema", function (done) {
+            async.parallel ([
+                function (callback) {
+                    testValidate (
+                        {
+                            able:   {
+                                able:   {
+                                    able:   {
+                                        able:   {
+                                            baker:  42
+                                        },
+                                        baker:  9
+                                    },
+                                    baker:  11
+                                },
+                                baker:  9001
+                            },
+                            baker:  78
+                        },
+                        { able:{ '.optional':true, '.recurse':1 }, baker:{ '.type':'number' }},
+                        true,
+                        callback
+                    );
+                },
+                function (callback) {
+                    testValidate (
+                        {
+                            able:   {
+                                able:   {
+                                    able:   {
+                                        able:   {
+                                            baker:  42
+                                        },
+                                        baker:   9,
+                                        charlie: 7
+                                    },
+                                    baker:  11
+                                },
+                                baker:  9001
+                            },
+                            baker:  78
+                        },
+                        { able:{ '.optional':true, '.recurse':1 }, baker:{ '.type':'number' }},
+                        false,
+                        callback
+                    );
+                }
+            ], done);
         });
 
     });

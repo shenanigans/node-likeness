@@ -248,10 +248,12 @@ JSContext.prototype.resolve = function (parent, ref, callback, chain) {
                 return;
             }
 
+            // aggressively require the prescribed Content-Type header
             // if (response.headers['content-type'].slice (0, 23) != 'application/schema+json')
             //     return callback (new Error (
             //         'failed to resolve a schema from the remote server - ' + canonicalURL
             //     ));
+
             if (response.body instanceof Buffer || typeof response.body == 'string') {
                 try {
                     response.body = JSON.parse (response.body);
@@ -472,8 +474,7 @@ JSContext.prototype.compile = function (parent, schema, callback, chain) {
         if (err) return process.nextTick (function(){ callback (err); });
         var output = {};
         for (var i=0,j=compilation.length; i<j; i++)
-            if (keys[i] != '$schema')
-                output[keys[i]] = compilation[i];
+            output[keys[i]] = compilation[i];
         process.nextTick (function(){ callback (undefined, output); });
     });
 };
