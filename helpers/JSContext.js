@@ -26,10 +26,12 @@ var DEFAULT_OPTIONS = {
 /**     @class likeness.helpers.JSContext
     @root
 
-@Object #namespace
 @Object #universeCache
+    This multi-layer cache is organized as `{ "hostName.com":{ "/path":{ "#hash":{
+    $schema:"http://json-schema.org ...`
 @Object #queues
-    Clip a url between protocol and hash -
+    URLs (without hash portion) with concurrent active requests mapped to Arrays of callbacks. Used
+    to prevent multiple network requests to the same URL.
 */
 function JSContext (options) {
     options = options || {};
@@ -470,7 +472,8 @@ JSContext.prototype.compile = function (parent, schema, callback, chain) {
         if (err) return process.nextTick (function(){ callback (err); });
         var output = {};
         for (var i=0,j=compilation.length; i<j; i++)
-            output[keys[i]] = compilation[i];
+            if (keys[i] != '$schema')
+                output[keys[i]] = compilation[i];
         process.nextTick (function(){ callback (undefined, output); });
     });
 };

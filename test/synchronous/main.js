@@ -1,6 +1,6 @@
 
 describe ("synchronous", function(){
-    // require ('./validate');
+    require ('./validate');
     // require ('./report');
     require ('./transform');
     // require ('./mongoloids');

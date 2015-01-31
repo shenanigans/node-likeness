@@ -76,7 +76,8 @@ describe ("validate", function(){
             var testDoc = {
                 object:     {},
                 array:      [],
-                number:     42,
+                number:     42.7,
+                integer:    39,
                 string:     "This is my String. There are many like it, but this one is mine.",
                 boolean:    true,
                 deep:       {
@@ -97,11 +98,32 @@ describe ("validate", function(){
                         object:     { '.type':'object', '.arbitrary':true },
                         array:      { '.type':'array' },
                         number:     { '.type':'number' },
+                        integer:    { '.type':'integer' },
                         string:     { '.type':'string' },
                         boolean:    { '.type':'boolean' },
                         deep:       { '.type':'object', '.arbitrary':true }
                     },
                     true
+                );
+                testValidate (
+                    testDoc,
+                    { object:{ '.type':'array' } },
+                    false
+                );
+                testValidate (
+                    testDoc,
+                    { array:{ '.type':'object' } },
+                    false
+                );
+                testValidate (
+                    testDoc,
+                    { number:{ '.type':'string' } },
+                    false
+                );
+                testValidate (
+                    testDoc,
+                    { number:{ '.type':'int' } },
+                    false
                 );
             });
 
