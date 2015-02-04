@@ -4,10 +4,14 @@ var async = require ('async');
 var needle = require ('needle');
 var getTypeStr = require ('../lib/GetTypeStr');
 
-var STD_DRAFT_04 = require ('./JSPredefs/draft04.json');
-var STD_DRAFT_03 = require ('./JSPredefs/draft03.json');
-var STD_DRAFT_04_HYPER = require ('./JSPredefs/draft04_hyper.json');
-var STD_DRAFT_03_HYPER = require ('./JSPredefs/draft03_hyper.json');
+var STD_DRAFT_04        = require ('./JSPredefs/draft04.json');
+var STD_DRAFT_03        = require ('./JSPredefs/draft03.json');
+var STD_DRAFT_04_HYPER  = require ('./JSPredefs/draft04_hyper.json');
+var STD_DRAFT_03_HYPER  = require ('./JSPredefs/draft03_hyper.json');
+var STD_CARD            = require ('./JSPredefs/card.json');
+var STD_ADDRESS         = require ('./JSPredefs/address.json');
+var STD_CALENDAR        = require ('./JSPredefs/calendar.json');
+var STD_GEO             = require ('./JSPredefs/geo.json');
 var standardSchemata = {
     "json-schema.org":          {
         "/schema":                  STD_DRAFT_04,
@@ -15,9 +19,14 @@ var standardSchemata = {
         "/draft-04/schema":         STD_DRAFT_04,
         "/draft-04/hyper-schema":   STD_DRAFT_04_HYPER,
         "/draft-03/schema":         STD_DRAFT_03,
-        "/draft-03/hyper-schema":   STD_DRAFT_03_HYPER
+        "/draft-03/hyper-schema":   STD_DRAFT_03_HYPER,
+        "/card":                    STD_CARD,
+        "/address":                 STD_ADDRESS,
+        "/calendar":                STD_CALENDAR,
+        "/geo":                     STD_GEO
     }
 };
+
 var DEFAULT_OPTIONS = {
     timeout:    3000,
     maxDepth:   10

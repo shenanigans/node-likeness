@@ -37,7 +37,7 @@ function testValidate (doc, schema, shouldPass, callback) {
 
 describe ("validate", function(){
 
-    describe ("basic structures", function(){
+    describe ("document structure", function(){
 
         it ("gets upset about extraneous properties, by default", function (done) {
             testValidate (
@@ -123,6 +123,120 @@ describe ("validate", function(){
                     );
                 }
             ], done);
+        });
+
+        describe (".dependencies", function(){
+
+            it ("uses keys to require other keynames", function (done) {
+                testValidate (
+                    {
+                        able:       9001,
+                        baker:      9002,
+                        charlie:    9003,
+                        dog:        9004,
+                        easy:       9005,
+                        fox:        9006
+                    },
+                    { '.arbitrary':true, '.all':{ '.type':'number' }, '.dependencies':{
+                        able:[ 'baker' ],
+                        charlie:[ 'dog' ],
+                        easy:[ 'fox' ]
+                    } },
+                    true,
+                    done
+                );
+            });
+
+            it ("fails when dependencies cannot be met", function (done) {
+                testValidate (
+                    {
+                        able:       9001,
+                        baker:      9002,
+                        charlie:    9003,
+                        dog:        9004,
+                        easy:       9005
+                    },
+                    { '.arbitrary':true, '.all':{ '.type':'number' }, '.dependencies':{
+                        able:[ 'baker' ],
+                        charlie:[ 'dog' ],
+                        easy:[ 'fox' ]
+                    } },
+                    false,
+                    done
+                );
+            });
+
+            it ("uses keys to requires keys which require keys etcetera", function (done) {
+                testValidate (
+                    {
+                        able:       9001,
+                        baker:      9002,
+                        charlie:    9003,
+                        dog:        9004,
+                        easy:       9005,
+                        fox:        9006
+                    },
+                    { '.arbitrary':true, '.all':{ '.type':'number' }, '.dependencies':{
+                        able:[ 'baker' ],
+                        baker:[ 'charlie' ],
+                        charlie:[ 'dog' ],
+                        dog:[ 'easy' ],
+                        easy:[ 'fox' ]
+                    } },
+                    true,
+                    done
+                );
+            });
+
+            it ("fails when chaining dependencies cannot be met", function (done) {
+                testValidate (
+                    {
+                        able:       9001,
+                        baker:      9002,
+                        charlie:    9003,
+                        dog:        9004,
+                        easy:       9005
+                    },
+                    { '.arbitrary':true, '.all':{ '.type':'number' }, '.dependencies':{
+                        able:[ 'baker' ],
+                        baker:[ 'charlie' ],
+                        charlie:[ 'dog' ],
+                        dog:[ 'easy' ],
+                        easy:[ 'fox' ]
+                    } },
+                    false,
+                    done
+                );
+            });
+
+            it ("activates dependent schemata", function (done) {
+                testValidate (
+                    {
+                        able:       9001,
+                        baker:      9002
+                    },
+                    { '.arbitrary':true, '.all':{ '.type':'number' }, '.dependencies':{
+                        able:{ baker:{ '.type':'number' } }
+                    } },
+                    true,
+                    done
+                );
+            });
+
+            it ("fails when activated dependent schemata fail", function (done) {
+                testValidate (
+                    {
+                        able:       9001,
+                        baker:      "it's over nine thoooooouuuusaaaaaaaaaaand!!!"
+                    },
+                    { '.arbitrary':true, '.all':{ '.type':'number' }, '.dependencies':{
+                        able:{ baker:{ '.type':'number' } }
+                    } },
+                    false,
+                    done
+                );
+            });
+
         });
 
     });
@@ -522,6 +636,90 @@ describe ("validate", function(){
                     testDoc,
                     { '.max':4 },
                     false,
+                    done
+                );
+            });
+
+            it ("accepts the document when .format is satisfied", function (done) {
+                testValidate (
+                    {
+                        able:       [
+                            "2002-10-02"
+                        ],
+                        baker:      [
+                            "10:00:00"
+                        ],
+                        charlie:    [
+                            "2002-10-02T10:00:00-05:00",
+                            "2002-10-02T15:00:00Z",
+                            "2002-10-02T15:00:00.05Z"
+                        ],
+                        dog:        [
+                            'niceandsimple@example.com',
+                            'very.common@example.com',
+                            'a.little.lengthy.but.fine@dept.example.com',
+                            'disposable.style.email.with+symbol@example.com',
+                            'other.email-with-dash@example.com',
+                            // the regex I picked up isn't very complete...
+                            // '"much.more unusual"@example.com',
+                            // '"very.unusual.@.unusual.com"@example.com',
+                            // '"very.(),:;<>[]\".VERY.\"very@\\ \"very\".unusual"@strange.example.com',
+                            'admin@mailserver1',
+                            // ' !#$%&*+-/=?\'^_`{}|~@example.org',
+                            // '"()<>[]:,;@\\\"!#$%&\'*+-/=?^_`{}| ~.a"@example.org',
+                            // '" "@example.org',
+                            // 'üñîçøðé@example.com',
+                            // 'üñîçøðé@üñîçøðé.com'
+                        ],
+                        easy:       [
+                            'example.com',
+                            'foo.bar.example.mit.edu'
+                        ],
+                        fox:        [
+                            '10.10.100.12', '210.21.210.99', '127.0.0.1'
+                        ],
+                        george:     [
+                            'FE80:0000:0000:0000:0202:B3FF:FE1E:8329',
+                            'FE80:0:0:0:0202:B3FF:FE1E:8329',
+                            'FE80::0202:B3FF:FE1E:8329'
+                        ],
+                        hotel:      [
+                            'ftp://ftp.is.co.za/rfc/rfc1808.txt',
+                            'http://www.ietf.org/rfc/rfc2396.txt',
+                            'ldap://[2001:db8::7]/c=GB?objectClass?one',
+                            'mailto:John.Doe@example.com',
+                            'news:comp.infosystems.www.servers.unix',
+                            'tel:+1-816-555-1212',
+                            'telnet://192.0.2.16:80/',
+                            'urn:oasis:names:specification:docbook:dtd:xml:4.1.2'
+                        ]
+                    },
+                    {
+                        able:       { '.type':'array', '.all':{ '.type':'string', '.format':'date' } },
+                        baker:      { '.type':'array', '.all':{ '.type':'string', '.format':'time' } },
+                        charlie:    { '.type':'array', '.all':{ '.type':'string', '.format':'date-time' } },
+                        dog:        { '.type':'array', '.all':{ '.type':'string', '.format':'email' } },
+                        easy:       { '.type':'array', '.all':{ '.type':'string', '.format':'hostname' } },
+                        fox:        { '.type':'array', '.all':{ '.type':'string', '.format':'ipv4' } },
+                        george:     { '.type':'array', '.all':{ '.type':'string', '.format':'ipv6' } },
+                        hotel:      { '.type':'array', '.all':{ '.type':'string', '.format':'uri' } }
+                    },
+                    true,
+                    done
+                );
+            });
+
+            it ("accepts the document with .keyFormat", function (done) {
+                testValidate (
+                    {
+                        'very.common@example.com':                          9001,
+                        'a.little.lengthy.but.fine@dept.example.com':       9002,
+                        'disposable.style.email.with+symbol@example.com':   9003
+                    },
+                    {
+                        '.keyFormat':'email'
+                    },
+                    true,
                     done
                 );
             });

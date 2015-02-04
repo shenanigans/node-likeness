@@ -101,7 +101,6 @@ function testMongoloid (schema, document, fragment, callback, empty) {
             collection.findOne ({ _id:_id }, function (err, mongoResult) {
                 if (err) return callback (err);
                 if (!deepCompare (result, mongoResult)) {
-                    console.log (result);
                     return callback (new Error (
                         'mongoloid result did not match - '+JSON.stringify (mongoResult)
                     ));
@@ -116,7 +115,7 @@ function testMongoloid (schema, document, fragment, callback, empty) {
 describe ("mongoloid updates", function(){
     this.timeout (150);
 
-    describe ("$set", function(){
+    describe ("simple (produces $set updates)", function(){
 
         it ("sets Strings on shallow paths with named children", function (done) {
             testMongoloid (
@@ -340,7 +339,7 @@ describe ("mongoloid updates", function(){
 
     });
 
-    describe ("$math", function(){
+    describe ("math updates", function(){
 
         it ("adds", function (done) {
             testMongoloid (
@@ -404,7 +403,7 @@ describe ("mongoloid updates", function(){
 
     });
 
-    describe ("$push", function(){
+    describe ("array updates", function(){
 
         it ("appends an element", function (done) {
             testMongoloid (
@@ -514,15 +513,35 @@ describe ("mongoloid updates", function(){
             );
         });
 
+        it ("properly updates a complex Array $set operation", function (done) {
+            testMongoloid (
+                {    // schema
+                    able:       { '.type':'array', '.all':{ '.add':true }, '.sequence':[
+                        { '.multiply':true },
+                        { '.multiply':true },
+                        { '.multiply':true },
+                        { '.multiply':true }
+                    ] }
+                },
+                {    // fragment
+                    able:       [ 10, 20, 30, 40 ]
+                },
+                {    // document
+                    able:       [ 10, 10, 10, 10 ]
+                },
+                done
+            );
+        });
+
     });
 
-    describe ("$sort", function(){
+    describe (".sort", function(){
 
 
 
     });
 
-    describe ("$slice", function(){
+    describe (".clip", function(){
 
         it ("reserves the first elements of an Array", function (done) {
             testMongoloid (

@@ -44,8 +44,10 @@ function testTransform (schema, source, target, goal, callback) {
     var sync = true;
     try {
         schema.transform (source, target, function (err, result) {
-            if (err)
+            if (err) {
+                console.log (err.stack);
                 return callback (new Error (JSON.stringify (err)));
+            }
             if (sync)
                 return callback (new Error ('callback fired synchronously'));
             if (sourceStr != JSON.stringify (source))
@@ -539,6 +541,62 @@ describe ("#transform", function(){
                 );
             });
 
+            it ("transforms with .matchChildren", function (done) {
+                testTransform (
+                    {
+                        '.matchChildren':   {
+                            '^a.*':{ '.type':'number' },
+                            '^b.*':{ '.type':'string' }
+                        }
+                    },
+                    {
+                        able:       32,
+                        aardvark:   42,
+                        baker:      'thirty-two',
+                        boozahol:   'forty-two'
+                    },
+                    { },
+                    {
+                        able:       32,
+                        aardvark:   42,
+                        baker:      'thirty-two',
+                        boozahol:   'forty-two'
+                    },
+                    done
+                );
+            });
+
+            it ("post-processes an Object with .exists", function (done) {
+                testTransform (
+                    {
+                        '.arbitrary':   true,
+                        '.all':         { '.add':true },
+                        '.exists':      [
+                            { '.type':'number', '.gt':10, '.multiply':10, '.times':2 }
+                        ]
+                    },
+                    {
+                        able:       8,
+                        baker:      9,
+                        charlie:    10,
+                        dog:        11
+                    },
+                    {
+                        able:       1,
+                        baker:      1,
+                        charlie:    1,
+                        dog:        1
+                    },
+                    {
+                        able:       9,
+                        baker:      10,
+                        charlie:    110,
+                        dog:        120
+                    },
+                    done
+                );
+            });
+
             describe (".unique", function(){
 
                 it ("accepts children with unique values");
@@ -607,9 +665,106 @@ describe ("#transform", function(){
                 );
             });
 
-            it ("processes a .sequence of transforms");
+            it ("processes a .sequence of transforms", function (done) {
+                testTransform (
+                    { '.sequence':[
+                        { '.type':'number', '.add':true },
+                        { '.type':'number', '.subtract':true },
+                        { '.type':'number', '.multiply':true },
+                        { '.type':'number', '.divide':true }
+                    ] },
+                    [ 10, 10, 10, 10 ],
+                    [ 100, 100, 100, 100 ],
+                    [ 110, 90, 1000, 10 ],
+                    done
+                );
+            });
 
-            it ("fails to transform due to one failing schema in a .sequence");
+            it ("fails to transform due to one failing schema in a .sequence", function (done) {
+                testTransformFailure (
+                    { '.sequence':[
+                        { '.type':'number', '.add':true },
+                        { '.type':'number', '.subtract':true },
+                        { '.type':'number', '.multiply':true },
+                        { '.type':'number', '.divide':true }
+                    ] },
+                    [ 10, 10, "10", 10 ],
+                    [ 100, 100, 100, 100 ],
+                    {
+                        code:   'TYPE'
+                    },
+                    done
+                );
+            });
+
+            it ("post-processes an Array with .exists", function (done) {
+                async.parallel ([
+                    function (callback) {
+                        testTransform (
+                            {
+                                '.type':    'array',
+                                '.exists':  [
+                                    { '.type':'number', '.gt':10, '.times':2 }
+                                ]
+                            },
+                            [ 6, 7, 8, 9, 10, 11, 12 ],
+                            [ 1, 1, 1, 1 ],
+                            [ 6, 7, 8, 9, 10, 11, 12 ],
+                            callback
+                        );
+                    },
+                    function (callback) {
+                        testTransform (
+                            {
+                                '.type':    'array',
+                                '.all':     { '.add':true },
+                                '.exists':  [
+                                    { '.type':'number', '.gt':10, '.times':2 }
+                                ]
+                            },
+                            [ 6, 7, 8, 9, 10, 11 ],
+                            [ 1, 1, 1, 1, 1, 1 ],
+                            [ 7, 8, 9, 10, 11, 12 ],
+                            callback
+                        );
+                    }
+                ], done);
+            });
+
+            it ("retains only unique values with .unique", function (done) {
+                testTransform (
+                    { '.unique':true, '.append':true },
+                    [ 0, 1, 2, 2, 1, 2, 5, 43, 6, 45, 12, 34 ,65, 4, 2, 3, 43, 2, 5, 7 ],
+                    [ 0, 1, 32, 3, 8, 43, 0, 5, 7 ],
+                    [ 0, 1, 3, 5, 7, 8, 32, 43, 2, 6, 45, 12, 34, 65, 4 ],
+                    done
+                );
+            });
+
+            it ("transforms every element with .all", function (done) {
+                testTransform (
+                    { '.type':'array', '.all':{ '.add':true } },
+                    [ 10, 10, 10, 10 ],
+                    [ 1, 2, 3, 4 ],
+                    [ 11, 12, 13, 14 ],
+                    done
+                );
+            });
+
+            it ("transforms with .all before .sequence", function (done) {
+                testTransform (
+                    { able:{ '.type':'array', '.all':{ '.add':true }, '.sequence':[
+                        { '.multiply':true },
+                        { '.multiply':true },
+                        { '.multiply':true },
+                        { '.multiply':true }
+                    ] } },
+                    { able:[ 10, 10, 10, 10 ] },
+                    { able:[ 10, 20, 30, 40 ] },
+                    { able:[ 200, 300, 400, 500 ] },
+                    done
+                );
+            });
 
         });
 
@@ -2236,94 +2391,94 @@ describe ("#transform", function(){
 
             });
 
-            describe (".insert", function(){
+            // describe (".insert", function(){
 
-                it ("inserts input Object's keys into a child key", function (done) {
-                    testTransform (
-                        {    // schema
-                            '.type':        'object',
-                            '.arbitrary':   true,
-                            '.insert':      'able'
-                        },
-                        {    // source
-                            able:   9001,
-                            baker:  'nine thousand and one'
-                        },
-                        { }, // target
-                        {    // goal
-                            able:   {
-                                able:   9001,
-                                baker:  'nine thousand and one'
-                            }
-                        },
-                        done
-                    );
-                });
+            //     it ("inserts input Object's keys into a child key", function (done) {
+            //         testTransform (
+            //             {    // schema
+            //                 '.type':        'object',
+            //                 '.arbitrary':   true,
+            //                 '.insert':      'able'
+            //             },
+            //             {    // source
+            //                 able:   9001,
+            //                 baker:  'nine thousand and one'
+            //             },
+            //             { }, // target
+            //             {    // goal
+            //                 able:   {
+            //                     able:   9001,
+            //                     baker:  'nine thousand and one'
+            //                 }
+            //             },
+            //             done
+            //         );
+            //     });
 
-                it ("processes the input Object as the inserted child key", function (done) {
-                    testTransform (
-                        {    // schema
-                            '.insert':      'userInput',
-                            userInput:      {
-                                able:           {
-                                    '.type':        'number',
-                                    '.gte':         0,
-                                    '.lte':         10,
-                                    '.normalize':   10
-                                },
-                                baker:          /^\w+$/
-                            }
-                        },
-                        {    // source
-                            able:       9,
-                            baker:      'hello'
-                        },
-                        { }, // target
-                        {    // goal
-                            userInput:  {
-                                able:       0.9,
-                                baker:      'hello'
-                            }
-                        },
-                        done
-                    );
-                });
+            //     it ("processes the input Object as the inserted child key", function (done) {
+            //         testTransform (
+            //             {    // schema
+            //                 '.insert':      'userInput',
+            //                 userInput:      {
+            //                     able:           {
+            //                         '.type':        'number',
+            //                         '.gte':         0,
+            //                         '.lte':         10,
+            //                         '.normalize':   10
+            //                     },
+            //                     baker:          /^\w+$/
+            //                 }
+            //             },
+            //             {    // source
+            //                 able:       9,
+            //                 baker:      'hello'
+            //             },
+            //             { }, // target
+            //             {    // goal
+            //                 userInput:  {
+            //                     able:       0.9,
+            //                     baker:      'hello'
+            //                 }
+            //             },
+            //             done
+            //         );
+            //     });
 
-                it ("injects before insertion", function (done) {
-                    testTransform (
-                        {    // schema
-                            '.insert':      'userInput',
-                            '.inject':      [
-                                [ 'cheese', 'parmesan' ]
-                            ],
-                            userInput:      {
-                                able:           {
-                                    '.type':        'number',
-                                    '.gte':         0,
-                                    '.lte':         10,
-                                    '.normalize':   10
-                                },
-                                baker:          /^\w+$/,
-                                cheese:         { '.type':'string' }
-                            }
-                        },
-                        {    // source
-                            able:       9,
-                            baker:      'hello'
-                        },
-                        { }, // target
-                        {    // goal
-                            userInput:  {
-                                able:       0.9,
-                                baker:      'hello',
-                                cheese:     'parmesan'
-                            }
-                        },
-                        done
-                    );
-                });
+            //     it ("injects before insertion", function (done) {
+            //         testTransform (
+            //             {    // schema
+            //                 '.insert':      'userInput',
+            //                 '.inject':      [
+            //                     [ 'cheese', 'parmesan' ]
+            //                 ],
+            //                 userInput:      {
+            //                     able:           {
+            //                         '.type':        'number',
+            //                         '.gte':         0,
+            //                         '.lte':         10,
+            //                         '.normalize':   10
+            //                     },
+            //                     baker:          /^\w+$/,
+            //                     cheese:         { '.type':'string' }
+            //                 }
+            //             },
+            //             {    // source
+            //                 able:       9,
+            //                 baker:      'hello'
+            //             },
+            //             { }, // target
+            //             {    // goal
+            //                 userInput:  {
+            //                     able:       0.9,
+            //                     baker:      'hello',
+            //                     cheese:     'parmesan'
+            //                 }
+            //             },
+            //             done
+            //         );
+            //     });
 
-            });
+            // });
 
             describe (".rename", function(){
 
@@ -2927,27 +3082,6 @@ describe ("#transform", function(){
                             );
                         }
                     ], done);
-                });
-
-            });
-
-            describe (".slice", function(){
-
-                it ("keeps only a slice of elements from the target", function (done) {
-                    testTransform (
-                        {    // schema
-                            '.type':    'array',
-                            '.slice':   [ 4, 8 ]
-                        },
-                        [    // source
-                            0, 1, 2, 3, 4, 5, 6, 7, 8, 9
-                        ],
-                        [ ], // target
-                        [    // goal
-                            4, 5, 6, 7
-                        ],
-                        done
-                    );
                 });
 
             });

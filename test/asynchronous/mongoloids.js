@@ -118,7 +118,7 @@ function testMongoloid (schema, document, fragment, callback, empty) {
 describe ("mongoloid updates", function(){
     this.timeout (150);
 
-    describe ("$set", function(){
+    describe ("simple (produces $set updates)", function(){
 
         it ("sets Strings on shallow paths with named children", function (done) {
             testMongoloid (
@@ -342,7 +342,7 @@ describe ("mongoloid updates", function(){
 
     });
 
-    describe ("$math", function(){
+    describe ("math updates", function(){
 
         it ("adds", function (done) {
             testMongoloid (
@@ -406,7 +406,7 @@ describe ("mongoloid updates", function(){
 
     });
 
-    describe ("$push", function(){
+    describe ("array updates", function(){
 
         it ("appends an element", function (done) {
             testMongoloid (
@@ -516,15 +516,35 @@ describe ("mongoloid updates", function(){
             );
         });
 
+        it ("properly updates a complex Array $set operation", function (done) {
+            testMongoloid (
+                {    // schema
+                    able:       { '.type':'array', '.all':{ '.add':true }, '.sequence':[
+                        { '.multiply':true },
+                        { '.multiply':true },
+                        { '.multiply':true },
+                        { '.multiply':true }
+                    ] }
+                },
+                {    // fragment
+                    able:       [ 10, 20, 30, 40 ]
+                },
+                {    // document
+                    able:       [ 10, 10, 10, 10 ]
+                },
+                done
+            );
+        });
+
     });
 
-    describe ("$sort", function(){
+    describe (".sort", function(){
 
 
 
     });
 
-    describe ("$slice", function(){
+    describe (".clip", function(){
 
         it ("reserves the first elements of an Array", function (done) {
             testMongoloid (
@@ -552,25 +572,6 @@ describe ("mongoloid updates", function(){
                         '.type':    'array',
                         '.append':  true,
                         '.clip':   -7
-                    }
-                },
-                {    // document
-                    able:       [ 0, 1, 2, 3, 4, 5 ]
-                },
-                {    // fragment
-                    able:       [ 9, 9, 9, 9 ]
-                },
-                done
-            );
-        });
-
-        it ("reserves a middle slice of elements from an Array", function (done) {
-            testMongoloid (
-                {    // schema
-                    able:       {
-                        '.type':    'array',
-                        '.append':  true,
-                        '.slice':   [ 3, 9 ]
                     }
                 },
                 {    // document

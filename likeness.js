@@ -221,8 +221,8 @@ var SPECIAL_KEYS = {
     '.type':            'type',         // restrict document type
     '.adHoc':           'adHoc',        // accept unknown keys
     '.arbitrary':       'adHoc',
-    '.tolerant':        'tolerant',     // ignore unknown keys
     '.optional':        'optional',     // accept `undefined` as a valid document
+    '.dependencies':    'dependencies', // schema or name requirements triggered by key presence
     '.unique':          'unique',       // all children or array elements must be unique values
     '.key':             'keyTest',      // for matching arbitrary keys
     '.keyTest':         'keyTest',
@@ -277,21 +277,27 @@ var SPECIAL_KEYS = {
     '.anyValue':        'anyValue',     // exact value match against Array of candidates
     '.sequence':        'sequence',     // an Array of schema which must match sequentially
     '.recurse':         'recurse',      // recursive backref
+    '.format':          'format',       // validate Strings as matching a complex web-rfc format
+    '.keyFormat':       'keyFormat',    // accept keys matching a complex web-rfc format
 
     //================================== Transforms
     //      These don't evaluate documents, they transform valid documents
+    '.tolerant':        'tolerant',     // ignore unknown keys
     '.cast':            'cast',         // convert strings to match .type
     '.set':             'setVal',       // hard overwrite
     '.default':         'default',      // fill if not defined
     '.inject':          'inject',       // insert hard data into input and overwrite target
     '.insert':          'insert',       // insert input into target at Array/String position
+    '.newKeys':         'newKeys',      // ignore keys already found on the target
     '.append':          'append',       // append input to target Array/String
     '.prepend':         'prepend',      // prepend input to target Array/String
+    '.asElem':          'asElem',
+    '.asItem':          'asItem',
     '.normal':          'normal',       // normalize Numbers
     '.normalize':       'normal',
     '.normalization':   'normal',
-    '.add':             'total',        // add input number to target
-    '.total':           'total',
+    '.add':             'add',        // add input number to target
+    '.total':           'add',
     '.subtract':        'subtract',     // subtract input number from target
     '.multiply':        'multiply',     // multiply target number by input
     '.divide':          'divide',       // divide target number by input
@@ -308,8 +314,7 @@ var SPECIAL_KEYS = {
     '.filter':          'filter',       // pass key/index and value to function for selective drop
     '.rename':          'rename',       // rename a key
     '.drop':            'drop',         // drop a key
-    '.clip':            'clip',         // restrict max length
-    '.slice':           'slice'         // retain specific subsection
+    '.clip':            'clip'          // restrict max length
 };
 
 
@@ -417,6 +422,26 @@ var Likeness = function (schema, path, parent) {
         this.constraints.all = new Likeness (this.constraints.all, path, this);
         if (this.constraints.all.isAsync)
             this.isAsync = true;
+    }
+
+    if (this.constraints.dependencies) {
+        var depKeys = Object.keys (this.constraints.dependencies);
+        if (depKeys.length && !(this.constraints.dependencies[depKeys[0]] instanceof Array))
+            for (var i=0,j=depKeys.length; i<j; i++) {
+                var newLikeness = this.constraints.dependencies[depKeys[i]] = new Likeness (
+                    this.constraints.dependencies[depKeys[i]]
+                );
+                if (!newLikeness.constraints.type)
+                    newLikeness.constraints.type = 'object';
+                else if (newLikeness.constraints.type != 'object')
+                    throw new Error (
+                        'invalid dependency - set to type "'
+                      + newLikeness.constraints.type
+                      + '" (must be "object")'
+                    );
+                newLikeness.constraints.tolerant  = true;
+                newLikeness.constraints.adHoc = true;
+            }
     }
 
     if (this.constraints.extras) {

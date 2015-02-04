@@ -20,32 +20,82 @@ var SIMPLE_CONVERSIONS = {
     'minimumLength':        '.min',
     'minItems':             '.min',
     'minProperties':        '.min',
-    'exclusiveMinimum':     'exclusiveMin',
-
-    // ================================================== Extensions
+    'exclusiveMinimum':     '.exclusiveMin',
+    'uniqueItems':          '.unique'
 };
+
+var SIMPLE_CONVERSIONS_VALIDATION_EXTENSIONS = {
+    'arbitrary':            '.arbitrary',
+    'tolerant':             '.tolerant',
+    'uniqueValues':         '.unique',
+    'modulo':               '.modulo',
+    'length':               '.length',
+    'numKeys':              '.length',
+    'match':                '.match',
+    'times':                '.times'
+};
+for (var key in SIMPLE_CONVERSIONS)
+    SIMPLE_CONVERSIONS_VALIDATION_EXTENSIONS[key] = SIMPLE_CONVERSIONS[key];
+
+var SIMPLE_CONVERSIONS_TRANSFORM_EXTENSIONS = {
+    'cast':                 '.cast',
+    'set':                  '.setVal',
+    'default':              '.default',
+    'insert':               '.insert',
+    'append':               '.append',
+    'prepend':              '.prepend',
+    'normalize':            '.normal',
+    'add':                  '.add',
+    'subtract':             '.subtract',
+    'multiply':             '.multiply',
+    'divide':               '.divide',
+    'modulate':             '.modulate',
+    'invert':               '.inverse',
+    'reciprocal':           '.reciprocal',
+    'case':                 '.case',
+    'rename':               '.rename',
+    'drop':                 '.drop',
+    'clip':                 '.clip',
+    'slice':                '.slice'
+};
+for (var key in SIMPLE_CONVERSIONS)
+    SIMPLE_CONVERSIONS_TRANSFORM_EXTENSIONS[key] = SIMPLE_CONVERSIONS[key];
+for (var key in SCHEMA_CONVERSIONS_VALIDATION_EXTENSIONS)
+    SIMPLE_CONVERSIONS_TRANSFORM_EXTENSIONS[key] = SCHEMA_CONVERSIONS_VALIDATION_EXTENSIONS[key];
 
 var SCHEMA_CONVERSIONS = {
     'additionalProperties': '.extras',
     'additionalItems':      '.extras',
-    'not':                  '.not',
-
-    // ================================================== Extensions
+    'not':                  '.not'
 };
+
+var SCHEMA_CONVERSIONS_VALIDATION_EXTENSIONS = {
+    'values':               '.all',
+    'equals':               '.value',
+    'keyFormat':            '.keyFormat'
+};
+for (var key in SCHEMA_CONVERSIONS)
+    SCHEMA_CONVERSIONS_VALIDATION_EXTENSIONS[key] = SCHEMA_CONVERSIONS[key];
+
+var SCHEMA_CONVERSIONS_TRANSFORM_EXTENSIONS = SCHEMA_CONVERSIONS_VALIDATION_EXTENSIONS;
 
 var MAP_CONVERSIONS = {
     'properties':           '.children',
     'patternProperties':    '.matchChildren',
-
-    // ================================================== Extensions
 };
 
 var ARR_CONVERSIONS = {
     'anyOf':                '.anyOf',
-    'oneOf':                '.oneOf',
-
-    // ================================================== Extensions
+    'oneOf':                '.oneOf'
 };
+
+var ARR_CONVERSIONS_VALIDATION_EXTENSIONS = {
+    'thereExists':          '.exists',
+};
+for (var key in ARR_CONVERSIONS)
+    ARR_CONVERSIONS_VALIDATION_EXTENSIONS[key] = ARR_CONVERSIONS[key]
+
+var ARR_CONVERSIONS_TRANSFORM_EXTENSIONS = ARR_CONVERSIONS_VALIDATION_EXTENSIONS;
 
 var SKIP_STEPS = {};
 for (var key in SCHEMA_CONVERSIONS) SKIP_STEPS[key] = true;

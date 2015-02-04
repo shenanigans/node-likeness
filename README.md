@@ -19,6 +19,37 @@ var isValid = schema.validate ({ name:'schema information document' });
 ```
 
 
+JSON Schema
+-----------
+Likeness supports latest the [JSON Schema](http://json-schema.org/documentation.html) Draft 4
+specification. Expanded validation capabilities and transforms are available to JSON Schema users
+by setting the `$schema` property to `http://json-schema.org/likeness`. This URL does not actually
+exist - `likeness` just simulates it.
+
+Source supporting the `format` keyword borrows heavily from [jayschema]
+(https://github.com/natesilva/jayschema/tree/master/lib/suites/draft-04).
+
+`$ref` chasing occurs in advance. Remote references are resolved to produce a compiled document
+which can validate and transform quickly. There is a caveat - circular schema cannot be resolved,
+unless at least one link in the chain is recursive, i.e. it refers to a direct ancestor.
+```javascript
+// valid JSON Schema, but cannot be used with likeness
+{
+    foo:{ inner:{ $ref:"#/bar" } },
+    bar:{ inner:{ $ref:"#/foo" } }
+}
+
+// this one works with likeness
+{ foo:{ properties:{ bar:{ $ref:'#' } } } }
+
+// this one also works with likeness
+{
+    foo:{ inner:{ $ref:"#/bar" } },
+    bar:{ inner:{ $ref:"#/bar" } }
+}
+```
+
+
 Basic Usage
 -----------
 ###Validations
@@ -43,7 +74,12 @@ assert (adminCheckSchema.validate (testHuman));
 
 ###Transforms
 ```javascript
+// not ready for primetime
+```
 
+###MongoDB Transforms
+```javascript
+// ready when transforms are ready
 ```
 
 
@@ -94,7 +130,6 @@ Operator List
  * `.rename`        rename a key
  * `.drop`          drop a key
  * `.clip`          restrict max length
- * `.slice`         retain specific subsection
 
 ###Coming Soon
  *
