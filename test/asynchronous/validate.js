@@ -39,10 +39,10 @@ describe ("validate", function(){
 
     describe ("document structure", function(){
 
-        it ("gets upset about extraneous properties, by default", function (done) {
+        it ("gets upset about extraneous properties by default", function (done) {
             testValidate (
                 { able:4 },
-                { /* nothing */ },
+                { /* empty schema */ },
                 false,
                 done
             );
@@ -251,6 +251,10 @@ describe ("validate", function(){
                 integer:    39,
                 string:     "This is my String. There are many like it, but this one is mine.",
                 boolean:    true,
+                null:       null,
+                fauxNull0:  0,
+                fauxNull1:  'null',
+                fauxNull2:  false,
                 deep:       {
                     blue:       {
                         object:     {},
@@ -267,13 +271,14 @@ describe ("validate", function(){
                     function (callback) {
                         testValidate (
                             testDoc,
-                            {
+                            { '.arbitrary':true,
                                 object:     { '.type':'object', '.arbitrary':true },
                                 array:      { '.type':'array' },
                                 number:     { '.type':'number' },
                                 integer:    { '.type':'integer' },
                                 string:     { '.type':'string' },
                                 boolean:    { '.type':'boolean' },
+                                null:       { '.type':'null' },
                                 deep:       { '.type':'object', '.arbitrary':true }
                             },
                             true,
@@ -308,6 +313,38 @@ describe ("validate", function(){
                         testValidate (
                             testDoc,
                             { number:{ '.type':'int' } },
+                            false,
+                            callback
+                        );
+                    },
+                    function (callback) {
+                        testValidate (
+                            testDoc,
+                            { '.arbitrary':true, fauxNull0:{ '.type':'null' } },
+                            false,
+                            callback
+                        );
+                    },
+                    function (callback) {
+                        testValidate (
+                            testDoc,
+                            { '.arbitrary':true, fauxNull1:{ '.type':'null' } },
+                            false,
+                            callback
+                        );
+                    },
+                    function (callback) {
+                        testValidate (
+                            testDoc,
+                            { '.arbitrary':true, fauxNull2:{ '.type':'null' } },
+                            false,
+                            callback
+                        );
+                    },
+                    function (callback) {
+                        testValidate (
+                            testDoc,
+                            { '.arbitrary':true, fauxNull3:{ '.type':'null' } },
                             false,
                             callback
                         );

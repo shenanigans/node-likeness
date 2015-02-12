@@ -226,6 +226,10 @@ describe ("validate", function(){
                 integer:    39,
                 string:     "This is my String. There are many like it, but this one is mine.",
                 boolean:    true,
+                null:       null,
+                fauxNull0:  0,
+                fauxNull1:  'null',
+                fauxNull2:  false,
                 deep:       {
                     blue:       {
                         object:     {},
@@ -240,35 +244,56 @@ describe ("validate", function(){
             it ("constrains shallow properties by type", function(){
                 testValidate (
                     testDoc,
-                    {
+                    { '.arbitrary':true,
                         object:     { '.type':'object', '.arbitrary':true },
                         array:      { '.type':'array' },
                         number:     { '.type':'number' },
                         integer:    { '.type':'integer' },
                         string:     { '.type':'string' },
                         boolean:    { '.type':'boolean' },
+                        null:       { '.type':'null' },
                         deep:       { '.type':'object', '.arbitrary':true }
                     },
                     true
                 );
                 testValidate (
                     testDoc,
-                    { object:{ '.type':'array' } },
+                    { '.arbitrary':true, object:{ '.type':'array' } },
                     false
                 );
                 testValidate (
                     testDoc,
-                    { array:{ '.type':'object' } },
+                    { '.arbitrary':true, array:{ '.type':'object' } },
                     false
                 );
                 testValidate (
                     testDoc,
-                    { number:{ '.type':'string' } },
+                    { '.arbitrary':true, number:{ '.type':'string' } },
                     false
                 );
                 testValidate (
                     testDoc,
-                    { number:{ '.type':'int' } },
+                    { '.arbitrary':true, number:{ '.type':'int' } },
+                    false
+                );
+                testValidate (
+                    testDoc,
+                    { '.arbitrary':true, fauxNull0:{ '.type':'null' } },
+                    false
+                );
+                testValidate (
+                    testDoc,
+                    { '.arbitrary':true, fauxNull1:{ '.type':'null' } },
+                    false
+                );
+                testValidate (
+                    testDoc,
+                    { '.arbitrary':true, fauxNull2:{ '.type':'null' } },
+                    false
+                );
+                testValidate ( // does not interperet missing key as null
+                    testDoc,
+                    { '.arbitrary':true, fauxNull3:{ '.type':'null' } },
                     false
                 );
             });

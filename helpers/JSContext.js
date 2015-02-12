@@ -3,6 +3,7 @@ var url = require ('url');
 var async = require ('async');
 var needle = require ('needle');
 var getTypeStr = require ('../lib/GetTypeStr');
+var merge = require ('./mergeJSONSchema');
 
 var STD_DRAFT_04        = require ('./JSPredefs/draft04.json');
 var STD_DRAFT_03        = require ('./JSPredefs/draft03.json');
@@ -143,7 +144,7 @@ JSContext.prototype.submit = function (id, schema, callback, chain) {
 
         }
         namespace[hash] = schema;
-        callback();
+        callback (undefined, metaschema);
     }, chain);
 };
 
@@ -248,12 +249,13 @@ JSContext.prototype.resolve = function (parent, ref, callback, chain) {
     needle.get (
         (path.protocol || 'https:') + '//' + canonicalURL,
         { timeout:this.options.timeout },
-        function (err, response) {
-            if (err) {
+        function (needleErr, response) {
+            if (needleErr) {
+                // flush queue with error
                 var queue = self.queues[canonicalURL];
                 delete self.queues[canonicalURL];
                 for (var i=0,j=queue.length; i<j; i++)
-                    queue[i] (err);
+                    queue[i] (needleErr);
                 return;
             }
 
@@ -263,6 +265,7 @@ JSContext.prototype.resolve = function (parent, ref, callback, chain) {
             //         'failed to resolve a schema from the remote server - ' + canonicalURL
             //     ));
 
+            // regardless of content-type, attempt to treat the response as JSON Schema
             if (response.body instanceof Buffer || typeof response.body == 'string') {
                 try {
                     response.body = JSON.parse (response.body);
@@ -275,13 +278,13 @@ JSContext.prototype.resolve = function (parent, ref, callback, chain) {
             }
 
             // submit the entire reply to cache
-            self.submit ('http://'+canonicalURL, response.body, function (needleErr) {
-                if (needleErr) {
+            self.submit ('http://'+canonicalURL, response.body, function (err) {
+                if (err) {
                     // flush the queue
                     var queue = self.queues[canonicalURL];
                     delete self.queues[canonicalURL];
                     for (var i=0,j=queue.length; i<j; i++)
-                        queue[i] (needleErr);
+                        queue[i] (err);
                     return;
                 }
                 // resolve from cache
@@ -314,17 +317,21 @@ JSContext.prototype.resolveCompiled = function (parent, ref, callback, chain) {
         callback = ref;
         ref = parent;
         parent = url.parse (ref);
-    } else if (arguments.length == 3 && typeof ref != 'string') {
-        chain = callback;
-        callback = ref;
-        ref = parent;
-        parent = url.parse (ref);
     }
 
     var self = this;
     this.resolve (parent, ref, function (err, schema, chain) {
         if (err) return callback (err);
-        self.compile (parent, schema, callback, chain);
+
+        // ref to id
+        ref = url.parse (ref);
+        var compileID =
+            ( ( ref.protocol || parent.protocol || 'https:' ) + '//' )
+          + ( ref.host || parent.host )
+          + ( ref.path || parent.path )
+          + ( ref.hash || parent.hash || '#' )
+          ;
+        self.compile (parent, compileID, schema, callback, chain);
     }, chain);
 };
 
@@ -337,151 +344,231 @@ JSContext.prototype.resolveCompiled = function (parent, ref, callback, chain) {
     @argument/undefined|Object compilation
 */
 var ASS = {};
-JSContext.prototype.compile = function (parent, schema, callback, chain) {
+JSContext.prototype.compile = function (parent, id, schema, callback, chain) {
     if (arguments.length == 2) {
-        callback = schema;
+        callback = id;
         schema = parent;
-        parent = chain = undefined;
-    } else if (arguments.length == 3 && typeof schema == 'function') {
-        chain = callback;
+        parent = id = chain = undefined;
+    } else if (arguments.length == 3) {
         callback = schema;
-        schema = parent;
+        schema = id;
+        id = parent;
         parent = undefined;
     }
 
-    if (!parent) {
+    if (!id) {
         if (!schema.id)
             return process.nextTick (function(){ callback (new Error (
                 'cannot compile a schema without knowing what path it represents'
             )); });
-        parent = schema.id;
+        id = schema.id;
     }
+    var idInfo = url.parse (id);
+    if (!idInfo.hash)
+        id += '#';
+
+    if (!parent)
+        parent = id;
     if (typeof parent == 'string')
         parent = url.parse (parent);
 
     var self = this;
-    function compileLevel (path, level, callback) {
-        var isObj = false;
-        var compilation = [];
-        var iter = level;
-        var keys;
-        if (!(level instanceof Array)) {
-            isObj = true;
-
-            if (Object.hasOwnProperty.call (level, '$ref')) { // it's a reference!
-                // is it a recursive reference?
-                var refPath = url.parse (level.$ref);
-                if (
-                    ( !refPath.host || parent && refPath.host == parent.host )
-                 && ( !refPath.path || parent && refPath.path == parent.path )
-                ) {
-                    // it's local, but is it recursive?
-                    var fullPath;
-                    fullPath = url.parse (
-                        'https://' + parent.host + parent.path + path
-                    );
-
-                    if (
-                        fullPath.hash
-                     && fullPath.hash.length > refPath.hash.length
-                     && fullPath.hash.slice (0, refPath.hash.length) == refPath.hash
-                    ) // it's recursive!
-                        return callback (undefined, { $ref:level.$ref });
-                }
-
-                var pseudoParent = {
-                    host:       refPath.host || parent.host,
-                    path:       refPath.path || parent.path,
-                    hash:       refPath.hash
-                };
-                if (pseudoParent.path[0] != '/')
-                    pseudoParent.path = '/' + pseudoParent.path;
-                return self.resolveCompiled (pseudoParent, level.$ref, function (err, resolved) {
-                    if (err) return callback (err);
-                    callback (undefined, resolved);
-                }, chain);
-            }
-
-            keys = Object.keys (level);
-            iter = [];
-            for (var i=0,j=keys.length; i<j; i++)
-                iter[i] = level[keys[i]];
-        }
-
-        async.timesSeries (iter.length, function (sublevelI, callback) {
-            var sublevel = iter[sublevelI];
-
-            // properties is special - it may contain the key "$ref" without being a reference
-            if (isObj && keys[sublevelI] == 'properties') {
-                // a dream within a dream
-                var propKeys = Object.keys (sublevel);
-                var propCompilation = [];
-                return async.timesSeries (propKeys.length, function (propKeysI, callback) {
-                    compileLevel (
-                        path + '/properties/' + propKeys[propKeysI],
-                        sublevel[propKeys[propKeysI]],
-                        function (err, compiledProperty) {
-                            if (err) return callback (err);
-                            propCompilation[propKeysI] = compiledProperty;
-                            callback();
-                        }
-                    );
-                }, function (err) {
-                    if (err) return callback (err);
-                    var propOutput = {};
-                    for (var i=0,j=propCompilation.length; i<j; i++)
-                        propOutput[propKeys[i]] = propCompilation[i];
-                    compilation[sublevelI] = propOutput;
-                    callback();
-                });
-            }
-
-            if (typeof sublevel != 'object') {
-                compilation[sublevelI] = sublevel;
-                return callback();
-            }
-            compileLevel (
-                isObj ? path + '/' + keys[sublevelI] : path,
-                sublevel,
-                function (err, compiledSublevel) {
-                    if (err) return callback (err);
-                    compilation[sublevelI] = compiledSublevel;
-                    callback();
-                }
-            );
-        }, function (err) {
-            if (err) return callback (err);
-            if (!isObj)
-                return callback (undefined, compilation);
-
-            var output = {};
-            for (var i=0,j=compilation.length; i<j; i++)
-                output[keys[i]] = compilation[i];
-            callback (undefined, output);
-        });
-    }
-
-    var keys = Object.keys (schema);
-    var compilation = [];
-    async.timesSeries (keys.length, function (keyI, callback) {
-        var key = keys[keyI];
-        var val = schema[key];
-        if (typeof val != 'object') {
-            compilation[keyI] = val;
-            return callback();
-        }
-        compileLevel ((parent.hash||'#')+'/'+key, val, function (err, compiledLevel) {
-            if (err) return callback (err);
-            compilation[keyI] = compiledLevel;
-            callback();
-        });
-    }, function (err) {
-        // if (err) return process.nextTick (function(){ callback (err); });
+    this.submit (parent.href, schema, function (err, metaschema) {
         if (err) return callback (err);
-        var output = {};
-        for (var i=0,j=compilation.length; i<j; i++)
-            output[keys[i]] = compilation[i];
-        // process.nextTick (function(){ callback (undefined, output); });
-        callback (undefined, output);
+        function compileLevel (path, level, callback) {
+            var isObj = false;
+            var compilation = [];
+            var keys;
+
+            // async recursion driver, named so as to be callable after inheriting a $ref
+            var iter = level;
+            function compileIterSublevel (sublevelI, callback) {
+                var sublevel = iter[sublevelI];
+                var key;
+                if (isObj)
+                    key = keys[sublevelI];
+
+                // properties is special - it may contain the key "$ref" without being a reference
+                if (
+                    isObj
+                 && key == 'properties'
+                 || key == 'patternProperties'
+                 || key == 'dependencies'
+                ) {
+                    // a dream within a dream
+                    var propKeys = Object.keys (sublevel);
+                    var propCompilation = [];
+                    return async.timesSeries (propKeys.length, function (propKeysI, callback) {
+                        compileLevel (
+                            path + '/' + key + '/' + propKeys[propKeysI],
+                            sublevel[propKeys[propKeysI]],
+                            function (err, compiledProperty) {
+                                if (err) return callback (err);
+                                propCompilation[propKeysI] = compiledProperty;
+                                callback();
+                            }
+                        );
+                    }, function (err) {
+                        if (err) return callback (err);
+                        var propOutput = {};
+                        for (var i=0,j=propCompilation.length; i<j; i++)
+                            propOutput[propKeys[i]] = propCompilation[i];
+                        compilation[sublevelI] = propOutput;
+                        callback();
+                    });
+                }
+
+                if (typeof sublevel != 'object') {
+                    compilation[sublevelI] = sublevel;
+                    return callback();
+                }
+                compileLevel (
+                    isObj ? path + '/' + keys[sublevelI] : path,
+                    sublevel,
+                    function (err, compiledSublevel) {
+                        if (err) return callback (err);
+                        compilation[sublevelI] = compiledSublevel;
+                        callback();
+                    }
+                );
+            }
+
+            if (!(level instanceof Array)) {
+                isObj = true;
+
+                if (Object.hasOwnProperty.call (level, '$ref')) { // it's a reference!
+                    // is it a recursive reference?
+                    var refPath = url.parse (level.$ref);
+                    if (
+                        ( !refPath.host || parent && refPath.host == parent.host )
+                     && ( !refPath.path || parent && refPath.path == parent.path )
+                    ) {
+                        // it's local, but is it recursive?
+                        var idInfo = url.parse (id);
+                        var realIDInfo = url.parse (id + path);
+                        var parentHash = parent.hash || '#';
+                        if (
+                            realIDInfo.hash
+                         && realIDInfo.hash.length > refPath.hash.length
+                         && realIDInfo.hash.slice (0, refPath.hash.length) == refPath.hash
+                         // do not select ancestors of `id` that are not ancestors of `parent`
+                         && (
+                                idInfo.hash.length <= refPath.hash.length
+                             || parentHash.slice (0, refPath.hash.length) == refPath.hash
+                         )
+                        ) { // it's recursive!
+                            var idHash = idInfo.hash || '#';
+                            var replacePath =
+                                ( ( parent.protocol || 'https:' ) + '//' )
+                              + parent.host
+                              + parent.path
+                              + parentHash
+                              ;
+                            var modifiedPath = refPath.href.replace (idHash, replacePath);
+                            return callback (undefined, { $ref:url.parse (modifiedPath).hash });
+                        }
+                    }
+
+                    // resolve reference
+                    var pseudoParent = {
+                        host:       parent.host || refPath.host,
+                        path:       parent.path || refPath.path,
+                        hash:       parent.hash ? (parent.hash + path.slice (1)) : path
+                    };
+                    if (pseudoParent.path[0] != '/')
+                        pseudoParent.path = '/' + pseudoParent.path;
+                    pseudoParent.href =
+                        (refPath.protocol || 'https:')
+                      + '//'
+                      + pseudoParent.host
+                      + pseudoParent.path
+                      + pseudoParent.hash
+                      ;
+                    return self.resolveCompiled (pseudoParent, level.$ref, function (err, resolved) {
+                        if (err) return callback (err);
+                        keys = [];
+                        var allKeys = Object.keys (level);
+                        iter = [];
+                        for (var i=0,j=allKeys.length; i<j; i++) {
+                            var key = allKeys[i];
+                            if (
+                                Object.hasOwnProperty.call (metaschema.properties, key)
+                             && key != 'definitions'
+                            ) {
+                                iter.push (level[key])
+                                keys.push (key);
+                            }
+                        }
+                        async.timesSeries (iter.length, compileIterSublevel, function (err) {
+                            if (err) return callback (err);
+                            var output = {};
+                            for (var i=0,j=compilation.length; i<j; i++) {
+                                var key = keys[i];
+                                if (key != '$ref')
+                                    output[key] = compilation[i];
+                            }
+
+                            // merge resolved schema and local compilation
+                            callback (undefined, merge (resolved, output));
+                        });
+                    }, chain);
+                }
+
+                keys = [];
+                var allKeys = Object.keys (level);
+                iter = [];
+                for (var i=0,j=allKeys.length; i<j; i++) {
+                    var key = allKeys[i];
+                    if (
+                        Object.hasOwnProperty.call (metaschema.properties, key)
+                     && key != 'definitions'
+                    ) {
+                        iter.push (level[key])
+                        keys.push (key);
+                    }
+                }
+            }
+
+            async.timesSeries (iter.length, compileIterSublevel, function (err) {
+                if (err) return callback (err);
+                if (!isObj)
+                    return callback (undefined, compilation);
+
+                var output = {};
+                for (var i=0,j=compilation.length; i<j; i++)
+                    output[keys[i]] = compilation[i];
+                callback (undefined, output);
+            });
+        }
+
+
+        compileLevel ((parent.hash||'#'), schema, function (err, compiledSchema) {
+            if (err) return callback (err);
+            callback (err, compiledSchema);
+        });
+
+        // var keys = Object.keys (schema);
+        // var compilation = [];
+        // async.timesSeries (keys.length, function (keyI, callback) {
+        //     var key = keys[keyI];
+        //     var val = schema[key];
+        //     if (typeof val != 'object') {
+        //         compilation[keyI] = val;
+        //         return callback();
+        //     }
+        //     compileLevel ((parent.hash||'#')+'/'+key, val, function (err, compiledLevel) {
+        //         if (err) return callback (err);
+        //         compilation[keyI] = compiledLevel;
+        //         callback();
+        //     });
+        // }, function (err) {
+        //     // if (err) return process.nextTick (function(){ callback (err); });
+        //     if (err) return callback (err);
+        //     var output = {};
+        //     for (var i=0,j=compilation.length; i<j; i++)
+        //         output[keys[i]] = compilation[i];
+        //     // process.nextTick (function(){ callback (undefined, output); });
+        //     callback (undefined, output);
+        // });
     });
 };

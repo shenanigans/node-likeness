@@ -439,8 +439,10 @@ var Likeness = function (schema, path, parent) {
                       + newLikeness.constraints.type
                       + '" (must be "object")'
                     );
-                newLikeness.constraints.tolerant  = true;
-                newLikeness.constraints.adHoc = true;
+                if (newLikeness.constraints.tolerant !== false)
+                    newLikeness.constraints.tolerant  = true;
+                if (newLikeness.constraints.adHoc !== false)
+                    newLikeness.constraints.adHoc = true;
             }
     }
 
@@ -451,7 +453,7 @@ var Likeness = function (schema, path, parent) {
     }
 
     if (this.constraints.exists) {
-        if (getTypeStr (this.constraints.exists) == 'array')
+        if (this.constraints.exists instanceof Array)
             for (var i in this.constraints.exists) {
                 this.constraints.exists[i] = new Likeness (this.constraints.exists[i], path, this);
                 if (this.constraints.exists[i].isAsync)
@@ -494,6 +496,9 @@ var Likeness = function (schema, path, parent) {
         this.constraints.drop = drop;
     }
 
+    if (this.constraints.match)
+        this.constraints.match = new RegExp (this.constraints.match);
+
     if (this.constraints.matchChildren) {
         var newMatchers = [];
         for (var pattern in this.constraints.matchChildren) {
@@ -502,6 +507,11 @@ var Likeness = function (schema, path, parent) {
             if (subschema.isAsync)
                 this.isAsync = true;
             newMatchers.push (subschema);
+
+            // match against named children and merge if necessary
+            for (var name in this.children)
+                if (subschema.pattern.test (name))
+                    this.children[name] = this.children[name].createChild (subschema);
         }
         this.constraints.matchChildren = newMatchers;
     }

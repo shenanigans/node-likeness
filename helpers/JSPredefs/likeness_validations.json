@@ -6,6 +6,16 @@
     "default": {},
     "additionalProperties": { "$ref": "#" },
     "definitions": {
+        "predicate": {
+            "$ref":"#",
+            "properties": {
+                "times": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                }
+            }
+        },
         "schemaArray": {
             "type": "array",
             "minItems": 1,
@@ -144,7 +154,27 @@
         "allOf": { "$ref": "#/definitions/schemaArray" },
         "anyOf": { "$ref": "#/definitions/schemaArray" },
         "oneOf": { "$ref": "#/definitions/schemaArray" },
-        "not": { "$ref": "#" }
+        "not": { "$ref": "#" },
+        "modulo": {
+            "type": "number",
+            "minimum": 0,
+            "exclusiveMinimum": true
+        },
+        "length": { "$ref": "#/definitions/positiveInteger" },
+        "uniqueValues": {
+            "type": "boolean",
+            "default": false
+        },
+        "numProperties": { "$ref": "#/definitions/positiveInteger" },
+        "equals": {},
+        "thereExists":{ "anyOf": [
+            { "$ref":"#/definitions/predicate" },
+            {
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "#/definitions/predicate" }
+            }
+        ] }
     },
     "dependencies": {
         "exclusiveMaximum": [ "maximum" ],
