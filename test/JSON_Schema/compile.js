@@ -157,6 +157,32 @@ describe ("compile", function(){
             );
         });
 
+        it ("compiles a local reference chain", function (done) {
+            testCompile (
+                {
+                    foo:{ properties:{ able:{ $ref:"#/bar" } }, additionalProperties:false },
+                    bar:{ properties:{ baker:{ $ref:"#/baz" } }, additionalProperties:false },
+                    baz:{ properties:{ charlie:{ type:'number' } }, additionalProperties:false },
+                    properties:{ first:{ $ref:"#/foo" } },
+                },
+                { first:{ able:{ baker:{ charlie:9001 } } } },
+                done
+            );
+        });
+
+        it ("compiles a local reference loop", function (done) {
+            testCompile (
+                {
+                    foo:{ properties:{ able:{ $ref:"#/bar" } }, additionalProperties:false },
+                    bar:{ properties:{ baker:{ $ref:"#/foo" } }, additionalProperties:false },
+                    properties:{ first:{ $ref:"#/foo" } },
+                    additionalProperties:false
+                },
+                { first:{ able:{ baker:{ able:{ baker:{ able:{ baker:{ } } } } } } } },
+                done
+            );
+        });
+
         it ("compiles with common ancestor recursion", function (done) {
             testCompile (
                 {

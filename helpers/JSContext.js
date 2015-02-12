@@ -72,7 +72,7 @@ module.exports = JSContext;
 @callback
     @argument/Error|undefined err
 */
-JSContext.prototype.submit = function (id, schema, callback, chain) {
+JSContext.prototype.submit = function (id, schema, callback, replacements) {
     // walk to target namespace
     var path = url.parse (id);
     var pathHost = path.host;
@@ -145,7 +145,7 @@ JSContext.prototype.submit = function (id, schema, callback, chain) {
         }
         namespace[hash] = schema;
         callback (undefined, metaschema);
-    }, chain);
+    }, replacements);
 };
 
 
@@ -155,17 +155,17 @@ JSContext.prototype.submit = function (id, schema, callback, chain) {
 @callback
     @argument/Error|undefined err
     @argument/undefined|Object schema
-@argument/Array[String] chain
+@argument/Array[String] replacements
     @optional
     @development
 */
-JSContext.prototype.resolve = function (parent, ref, callback, chain) {
+JSContext.prototype.resolve = function (parent, ref, callback, replacements) {
     if (arguments.length == 2) {
         callback = ref;
         ref = parent;
-        parent = chain = undefined;
+        parent = replacements = undefined;
     } else if (arguments.length == 3 && typeof ref == 'function') {
-        chain = callback;
+        replacements = callback;
         callback = ref;
         ref = parent;
         parent = undefined;
@@ -197,39 +197,44 @@ JSContext.prototype.resolve = function (parent, ref, callback, chain) {
 
     // cycle detection
     var canonicalURL = pathHost + pathPath + hash;
-    if (!chain)
-        chain = [ canonicalURL ];
+    if (!replacements)
+        replacements = {};
     else {
         // you can easily build a malicious server to defeat cycle detection
         // chain depth limiting
-        if (chain.length >= this.options.maxDepth)
+        if (Object.keys (replacements).length >= this.options.maxDepth)
             return process.nextTick (function(){ callback (new Error (
                 'maximum resolution depth exceeded'
             )); });
 
-        // does this url appear in the chain already?
-        for (var i=0,j=chain.length; i<j; i++)
-            if (chain[i] == canonicalURL) {
-                return process.nextTick (function(){ callback (new Error (
-                    'cycle detected in ref '
-                  + ref
-                  + '\n'
-                  + chain.join (' -> ')
-                  + ' -> '
-                  + canonicalURL
-                )); });
-            }
+        var refPath = url.parse (ref);
+        var fullRef =
+            ( parent.protocol || 'https:' ) + '//'
+          + ( refPath.host || parent.host )
+          + ( refPath.path || parent.path )
+          + refPath.hash
+          ;
+        replacements[fullRef] = parent.hash || '#';
+            //     return process.nextTick (function(){ callback (new Error (
+            //         'cycle detected in ref '
+            //       + ref
+            //       + '\n'
+            //       + chain.join (' -> ')
+            //       + ' -> '
+            //       + canonicalURL
+            //     )); });
+            // }
 
         // clone the chain and append the current url
-        var newChain = [];
-        newChain.push.apply (newChain, chain);
-        newChain.push (canonicalURL);
-        chain = newChain;
+        // var newChain = [];
+        // newChain.push.apply (newChain, chain);
+        // newChain.push (canonicalURL);
+        // chain = newChain;
     }
 
     // any chance it's already been resolved?
     if (Object.hasOwnProperty.call (namespace, hash))
-        return process.nextTick (function(){ callback (undefined, namespace[hash], chain); });
+        return process.nextTick (function(){ callback (undefined, namespace[hash], replacements); });
 
     if (!pathHost && !pathPath) // local references won't get any more resolvable
         return process.nextTick (function(){ callback (new Error (
@@ -298,8 +303,8 @@ JSContext.prototype.resolve = function (parent, ref, callback, chain) {
                 var queue = self.queues[canonicalURL];
                 delete self.queues[canonicalURL];
                 for (var i=0,j=queue.length; i<j; i++)
-                    queue[i] (err, result, chain);
-            }, chain);
+                    queue[i] (err, result, replacements);
+            }, replacements);
         }
     );
 };
@@ -312,15 +317,18 @@ JSContext.prototype.resolve = function (parent, ref, callback, chain) {
     @argument/Error|undefined err
     @argument/undefined|Object compilation
 */
-JSContext.prototype.resolveCompiled = function (parent, ref, callback, chain) {
+JSContext.prototype.resolveCompiled = function (parent, ref, callback, replacements) {
     if (arguments.length == 2) {
         callback = ref;
         ref = parent;
         parent = url.parse (ref);
     }
 
+    if (!replacements)
+        replacements = {};
+
     var self = this;
-    this.resolve (parent, ref, function (err, schema, chain) {
+    this.resolve (parent, ref, function (err, schema, replacements) {
         if (err) return callback (err);
 
         // ref to id
@@ -331,8 +339,8 @@ JSContext.prototype.resolveCompiled = function (parent, ref, callback, chain) {
           + ( ref.path || parent.path )
           + ( ref.hash || parent.hash || '#' )
           ;
-        self.compile (parent, compileID, schema, callback, chain);
-    }, chain);
+        self.compile (parent, compileID, schema, callback, replacements);
+    }, replacements);
 };
 
 
@@ -344,17 +352,19 @@ JSContext.prototype.resolveCompiled = function (parent, ref, callback, chain) {
     @argument/undefined|Object compilation
 */
 var ASS = {};
-JSContext.prototype.compile = function (parent, id, schema, callback, chain) {
+JSContext.prototype.compile = function (parent, id, schema, callback, replacements) {
     if (arguments.length == 2) {
         callback = id;
         schema = parent;
-        parent = id = chain = undefined;
+        parent = id;
+        replacements = {};
     } else if (arguments.length == 3) {
         callback = schema;
         schema = id;
         id = parent;
         parent = undefined;
     }
+    if (!replacements) replacements = {};
 
     if (!id) {
         if (!schema.id)
@@ -399,9 +409,14 @@ JSContext.prototype.compile = function (parent, id, schema, callback, chain) {
                     var propKeys = Object.keys (sublevel);
                     var propCompilation = [];
                     return async.timesSeries (propKeys.length, function (propKeysI, callback) {
+                        var subsublevel = sublevel[propKeys[propKeysI]];
+                        if (typeof subsublevel != 'object') {
+                            propCompilation[propKeysI] = subsublevel;
+                            return callback();
+                        }
                         compileLevel (
                             path + '/' + key + '/' + propKeys[propKeysI],
-                            sublevel[propKeys[propKeysI]],
+                            subsublevel,
                             function (err, compiledProperty) {
                                 if (err) return callback (err);
                                 propCompilation[propKeysI] = compiledProperty;
@@ -439,6 +454,26 @@ JSContext.prototype.compile = function (parent, id, schema, callback, chain) {
                 if (Object.hasOwnProperty.call (level, '$ref')) { // it's a reference!
                     // is it a recursive reference?
                     var refPath = url.parse (level.$ref);
+                    var parentHash = parent.hash || '#';
+                    var fullRef =
+                        ( parent.protocol || 'https:' ) + '//'
+                      + ( refPath.host || parent.host )
+                      + ( refPath.path || parent.path )
+                      + refPath.hash
+                      ;
+
+                    if (Object.hasOwnProperty.call (replacements, fullRef)) {
+                        return process.nextTick (function(){
+                            callback (undefined, { $ref:replacements[fullRef] });
+                        });
+                    }
+
+                    var replacePath =
+                        ( ( parent.protocol || 'https:' ) + '//' )
+                      + parent.host
+                      + parent.path
+                      + parentHash
+                      ;
                     if (
                         ( !refPath.host || parent && refPath.host == parent.host )
                      && ( !refPath.path || parent && refPath.path == parent.path )
@@ -446,26 +481,19 @@ JSContext.prototype.compile = function (parent, id, schema, callback, chain) {
                         // it's local, but is it recursive?
                         var idInfo = url.parse (id);
                         var realIDInfo = url.parse (id + path);
-                        var parentHash = parent.hash || '#';
                         if (
-                            realIDInfo.hash
-                         && realIDInfo.hash.length > refPath.hash.length
-                         && realIDInfo.hash.slice (0, refPath.hash.length) == refPath.hash
+                            realIDInfo.hash.slice (0, refPath.hash.length) == refPath.hash
                          // do not select ancestors of `id` that are not ancestors of `parent`
                          && (
-                                idInfo.hash.length <= refPath.hash.length
+                                refPath.hash.slice (0, idInfo.hash.length) == idInfo.hash
                              || parentHash.slice (0, refPath.hash.length) == refPath.hash
                          )
                         ) { // it's recursive!
+                            // if (Object.hasOwnProperty.call (replacements, level.$ref)
                             var idHash = idInfo.hash || '#';
-                            var replacePath =
-                                ( ( parent.protocol || 'https:' ) + '//' )
-                              + parent.host
-                              + parent.path
-                              + parentHash
-                              ;
                             var modifiedPath = refPath.href.replace (idHash, replacePath);
-                            return callback (undefined, { $ref:url.parse (modifiedPath).hash });
+                            modifiedPath = replacements[fullRef] = url.parse (modifiedPath).hash;
+                            return callback (undefined, { $ref:modifiedPath });
                         }
                     }
 
@@ -511,7 +539,7 @@ JSContext.prototype.compile = function (parent, id, schema, callback, chain) {
                             // merge resolved schema and local compilation
                             callback (undefined, merge (resolved, output));
                         });
-                    }, chain);
+                    }, replacements);
                 }
 
                 keys = [];
@@ -542,7 +570,7 @@ JSContext.prototype.compile = function (parent, id, schema, callback, chain) {
         }
 
 
-        compileLevel ((parent.hash||'#'), schema, function (err, compiledSchema) {
+        compileLevel ('#', schema, function (err, compiledSchema) {
             if (err) return callback (err);
             callback (err, compiledSchema);
         });

@@ -138,6 +138,11 @@ function fromJSONSchema (schema, callback, context, path) {
         if (Object.hasOwnProperty.call (MAP_CONVERSIONS, key)) {
             var converted = {};
             return async.each (Object.keys (subschema), function (subkey, callback) {
+                var subsubschema = subschema[subkey];
+                if (typeof subsubschema != 'object') {
+                    converted[subkey] = subsubschema;
+                    return callback();
+                }
                 fromJSONSchema (subschema[subkey], function (err, sublikeness) {
                     if (err) return callback (err);
                     converted[subkey] = sublikeness;

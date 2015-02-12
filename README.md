@@ -87,27 +87,8 @@ undocumented "regex" value, so the Draft 4 metaschema is *still* technically inv
 changes mentioned above.
 
 `$ref` chasing occurs in advance. Remote references are resolved to produce a compiled document
-which can validate and transform quickly. There is a caveat - circular schema dependencies cannot be
-resolved unless they are recursive.
-```javascript
-// valid JSON Schema, but cannot be used with likeness
-{
-    foo:{ inner:{ $ref:"#/bar" } },
-    bar:{ inner:{ $ref:"#/foo" } }
-}
-
-// this one works with likeness
-{ foo:{ properties:{ bar:{ $ref:'#' } } } }
-
-// this one also works with likeness
-{
-    foo:{ inner:{ $ref:"#/bar" } },
-    bar:{ inner:{ $ref:"#/bar" } }
-}
-```
-
-`$ref` has also been extended to implement inheritence. This functionality is available regardless
-of the `$schema` setting.
+which can validate and transform quickly. `$ref` has also been extended to implement inheritence.
+This functionality is available regardless of the `$schema` setting.
 ```javascript
 {
     definitions:{
@@ -190,16 +171,6 @@ async.series ([
     // unless we want to get fresh schemata from the network
 });
 ```
-
-
-###Additional Notes
-I do not recommend using JSON Schema, for a number of reasons.
- * The `id` property is too powerful. Abusively so.
- * The defaults, i.e. the schema produced by `{}`, make mistakes very easy. For example, the Draft 4 Metaschema is incomplete (it doesn't explain the `format` property, although it uses it) and invalid (it uses an undocumented value for the `format` property) yet nobody seems to have noticed.
- * Named properties do not preclude regex-matched property schema. They do in `likeness`. When a `matchProperties` child affects a named property, the child schema is pre-merged before creating the likeness instance in order to simulate this behavior
- * Properties should have first-order status, not subschemata. The syntax as designed has poor legibility.
- * The design is generally cluttered with features for hosting schemata online. Do you imagine this will let deployed copies of your application magically adapt to API changes? Why in the world would a validation schema be something you would need to dynamically load?
- * Adopting more specs from the IETF will only encourage them.
 
 
 Operator List
