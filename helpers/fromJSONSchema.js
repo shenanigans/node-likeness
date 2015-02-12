@@ -267,7 +267,7 @@ function fromJSONSchema (schema, callback, context, path) {
                 pattern = new RegExp (pattern);
                 for (var childName in output['.children'])
                     if (pattern.test (childName))
-                        patternSubschema = merge (patternSubschema, output['.children'][childName]);
+                        patternSubschema = merge ( patternSubschema, output['.children'][childName]);
             }
         }
 

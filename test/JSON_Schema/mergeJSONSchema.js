@@ -3,11 +3,12 @@ var assert = require ('assert');
 var async = require ('async');
 var likeness = require ('../../likeness');
 var mergeJSONSchema = likeness.helpers.mergeJSONSchema;
+var metaschema = require ('../../helpers/JSPredefs/draft04');
 
 describe ('.helpers#mergeJSONSchema', function(){
 
     it ("performs a deep merge with simple constraints", function(){
-        var merged = mergeJSONSchema (
+        var merged = mergeJSONSchema (metaschema,
             {
                 definitions:    {
                     foo:            {
@@ -74,25 +75,6 @@ describe ('.helpers#mergeJSONSchema', function(){
             }
         );
         assert.deepEqual (merged, {
-            definitions:    {
-                foo:            {
-                    properties:     {
-                        able:           {
-                            type:           "string"
-                        },
-                        baker:          {
-                            type:           "string"
-                        }
-                    }
-                },
-                bar:            {
-                    properties:     {
-                        able:           {
-                            type:           "string"
-                        }
-                    }
-                }
-            },
             properties:     {
                 able:           {
                     type:           "array",
@@ -124,7 +106,7 @@ describe ('.helpers#mergeJSONSchema', function(){
     describe ("type", function(){
 
         it ("equal strings", function(){
-            var merged = mergeJSONSchema (
+            var merged = mergeJSONSchema (metaschema,
                 {
                     type:   "number"
                 },
@@ -138,7 +120,7 @@ describe ('.helpers#mergeJSONSchema', function(){
         });
 
         it ("unequal strings", function(){
-            var merged = mergeJSONSchema (
+            var merged = mergeJSONSchema (metaschema,
                 {
                     type:   "number"
                 },
@@ -152,7 +134,7 @@ describe ('.helpers#mergeJSONSchema', function(){
         });
 
         it ("arrays", function(){
-            var merged = mergeJSONSchema (
+            var merged = mergeJSONSchema (metaschema,
                 {
                     type:   [ "number", "string" ]
                 },
@@ -166,7 +148,7 @@ describe ('.helpers#mergeJSONSchema', function(){
         });
 
         it ("strings into arrays", function(){
-            var merged = mergeJSONSchema (
+            var merged = mergeJSONSchema (metaschema,
                 {
                     type:   "number"
                 },

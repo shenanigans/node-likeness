@@ -537,7 +537,7 @@ JSContext.prototype.compile = function (parent, id, schema, callback, replacemen
                             }
 
                             // merge resolved schema and local compilation
-                            callback (undefined, merge (resolved, output));
+                            callback (undefined, merge (metaschema, resolved, output));
                         });
                     }, replacements);
                 }

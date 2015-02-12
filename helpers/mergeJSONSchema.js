@@ -1,5 +1,5 @@
 
-function merge (able, baker) {
+function merge (metaschema, able, baker) {
     if (baker instanceof Array) {
         var output = [];
         if (!(able instanceof Array)) {
@@ -20,7 +20,8 @@ function merge (able, baker) {
     var output = {};
     // shallow clone able
     for (var key in able)
-        output[key] = able[key];
+        if (Object.hasOwnProperty.call (metaschema.properties, key))
+            output[key] = able[key];
 
     // overwrite or recurse
     for (var key in baker) {
@@ -62,18 +63,19 @@ function merge (able, baker) {
          || valType != 'object'
          || typeof output[key] != 'object'
         ) {
-            output[key] = val;
+            if (Object.hasOwnProperty.call (metaschema.properties, key))
+                output[key] = val;
             continue;
         }
 
         var target = output[key];
 
-        if (key == 'properties' || key == 'matchProperties') {
+        if (key == 'properties' || key == 'patternProperties') {
             // because of these special case keys, we must iterate properties and regex properties
             // in a way that does not test for special keys
             for (var subkey in val)
                 if (Object.hasOwnProperty.call (target, subkey))
-                    target[subkey] = merge (target[subkey], val[subkey]);
+                    target[subkey] = merge (metaschema, target[subkey], val[subkey]);
                 else
                     target[subkey] = val[subkey];
             continue;
@@ -109,7 +111,7 @@ function merge (able, baker) {
             }
 
             if (!aDepKeys && !bDepKeys) {
-                output[key] = merge (target, val);
+                output[key] = merge (metaschema, target, val);
                 continue;
             }
 
@@ -140,7 +142,7 @@ function merge (able, baker) {
                 if (!Object.hasOwnProperty.call (schemaDeps, key))
                     schemaDeps[key] = newSubelem;
                 else
-                    schemaDeps[key] = merge (schemaDeps[key], newSubelem);
+                    schemaDeps[key] = merge (metaschema, schemaDeps[key], newSubelem);
             }
             // dependencies are schemata from now on
             output.dependencies = schemaDeps;
@@ -148,7 +150,8 @@ function merge (able, baker) {
         }
 
         // keys that just need a simple recurse
-        output[key] = merge (target, val);
+        if (Object.hasOwnProperty.call (metaschema.properties, key))
+            output[key] = merge (metaschema, target, val);
     }
 
     return output;
