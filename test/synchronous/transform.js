@@ -397,6 +397,10 @@ describe ("#transform", function(){
                 );
             });
 
+            it ("rejects updates of mismatched type using an array of types");
+
+            it ("performs a type-appropriate transform using an array .type constraint");
+
         });
 
         describe ("eval/async", function(){

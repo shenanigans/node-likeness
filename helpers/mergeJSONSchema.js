@@ -1,5 +1,5 @@
 
-function merge (metaschema, able, baker) {
+function merge (metaschema, able, baker, asInheritence) {
     if (baker instanceof Array) {
         var output = [];
         if (!(able instanceof Array)) {
@@ -27,16 +27,42 @@ function merge (metaschema, able, baker) {
     for (var key in baker) {
         var val = baker[key];
         var valType = typeof val;
+        var target = output[key];
 
         if (key == 'type') {
             /* requires extra-special handling
              1. not defined in source - overwrite
-             2. two strings - string or array if not equal
-             3. string and array - append if unique
-             4. array and array - union
+             2. two strings - string or Error if not equal
+             3. string and array - string if found in array, else Error
+             4. array and array - intersect, string if length one, Error if length zero
+            OR:
+             2a. with asInheritence=true: always union all types to string or array
             */
             if (!Object.hasOwnProperty.call (output, 'type')) {
                 output.type = val;
+                continue;
+            }
+
+            if (asInheritence) {
+                var allTypes = {};
+
+                if (typeof target == 'string')
+                    allTypes[target] = true;
+                else
+                    for (var i=0,j=target.length; i<j; i++)
+                        allTypes[target[i]] = true;
+
+                if (valType == 'string')
+                    allTypes[val] = true;
+                else
+                    for (var i=0,j=val.length; i<j; i++)
+                        allTypes[val[i]] = true;
+
+                allTypes = Object.keys (allTypes);
+                if (allTypes.length == 1)
+                    output.type = allTypes[0];
+                else
+                    output.type = allTypes;
                 continue;
             }
 
@@ -45,39 +71,131 @@ function merge (metaschema, able, baker) {
                 typeNames[output.type] = true;
             else for (var i=0,j=output.type.length; i<j; i++)
                 typeNames[output.type[i]] = true;
-            if (typeof val == 'string')
-                typeNames[val] = true;
-            else for (var i=0,j=val.length; i<j; i++)
-                typeNames[val[i]] = true;
 
-            typeNames = Object.keys (typeNames);
-            if (typeNames.length == 1)
-                output.type = typeNames[0];
-            else
-                output.type = typeNames;
-            continue;
+            if (typeof val == 'string') {
+                if (!Object.hasOwnProperty.call (typeNames, val))
+                    throw new Error ('merged schema is always invalid - selects incompatible types');
+                output.type = val;
+                continue;
+            } else {
+                var finalTypes = [];
+                for (var i=0,j=val.length; i<j; i++)
+                    if (Object.hasOwnProperty.call (typeNames, val[i]))
+                        finalTypes.push (val[i]);
+                if (!finalTypes.length)
+                    throw new Error ('merged schema is always invalid - selects incompatible types');
+                if (finalTypes.length == 1)
+                    output.type = finalTypes[0];
+                else
+                    output.type = finalTypes;
+                continue;
+            }
+
+            throw new Error ('invalid type specification');
         }
 
-        if (
-            !Object.hasOwnProperty.call (output, key)
-         || valType != 'object'
-         || typeof output[key] != 'object'
-        ) {
-            if (Object.hasOwnProperty.call (metaschema.properties, key))
-                output[key] = val;
-            continue;
+        if (key == 'additionalProperties') {
+            if (typeof target == 'boolean') {
+                if (!target && !asInheritence)
+                    output.additionalProperties = false;
+                else
+                    output.additionalProperties = val;
+                continue;
+            }
+            if (typeof val == 'boolean') {
+                if (!val)
+                    output.additionalProperties = false;
+                else
+                    output.additionalProperties = output.additionalProperties || true;
+                continue;
+            }
         }
 
-        var target = output[key];
+        if (key == 'items') {
+            var isTargetArr = target instanceof Array;
+            var isValArr = val instanceof Array;
+            if (!isTargetArr && !isValArr) {
+                output.items = merge (metaschema, target, val, asInheritence);
+                continue;
+            }
+
+            var newSequence = [];
+            if (isTargetArr && !isValArr) {
+                for (var i=0,j=target.length; i<j; i++)
+                    newSequence[i] = merge (metaschema, target[i], val, asInheritence);
+                output.items = newSequence;
+                continue;
+            }
+
+            if (!isTargetArr && isValArr) {
+                for (var i=0,j=val.length; i<j; i++)
+                    newSequence[i] = merge (metaschema, target, val[i], asInheritence);
+                output.items = newSequence;
+                continue;
+            }
+
+            // both arrs
+            if (
+                ( target.length < val.length && !able.additionalItems )
+             || ( target.length > val.length && !baker.additionalItems )
+            )
+                throw new Error (
+                    'merged schema is always invalid - "items" sequences of unequal length'
+                );
+
+            for (var i=0,j=Math.max (target.length, val.length); i<j; i++) {
+                var subtarget = i < target.length ? target[i] : able.additionalItems;
+                var subval = i < val.length ? val[i] : baker.additionalItems;
+                newSequence[i] = merge (metaschema, subtarget, subval, asInheritence);
+            }
+            output.items = newSequence;
+
+            continue;
+        }
 
         if (key == 'properties' || key == 'patternProperties') {
-            // because of these special case keys, we must iterate properties and regex properties
-            // in a way that does not test for special keys
+            var finalProps = {};
+            if (!asInheritence) {
+                if (able.additionalProperties === false) {
+                    for (var subkey in val)
+                        if (Object.hasOwnProperty.call (target, subkey))
+                            finalProps[subkey] = merge (metaschema, target[subkey], val[subkey]);
+                } else if (typeof able.additionalProperties == 'object') {
+                    for (var subkey in val)
+                        if (Object.hasOwnProperty.call (target, subkey))
+                            finalProps[subkey] = merge (metaschema, target[subkey], val[subkey]);
+                        else
+                            finalProps[subkey] = merge (
+                                metaschema,
+                                able.additionalProperties,
+                                val[subkey]
+                            );
+                } else {
+                    for (var subkey in val)
+                        if (Object.hasOwnProperty.call (target, subkey))
+                            finalProps[subkey] = merge (metaschema, target[subkey], val[subkey]);
+                        else
+                            finalProps[subkey] = val[subkey];
+                }
+
+                for (var subkey in target)
+                    if (!Object.hasOwnProperty.call (finalProps, subkey))
+                        finalProps[subkey] = target[subkey];
+                output[key] = finalProps;
+                continue;
+            }
+
             for (var subkey in val)
                 if (Object.hasOwnProperty.call (target, subkey))
-                    target[subkey] = merge (metaschema, target[subkey], val[subkey]);
+                    target[subkey] = merge (metaschema, target[subkey], val[subkey], asInheritence);
                 else
                     target[subkey] = val[subkey];
+            continue;
+        }
+
+        if (!Object.hasOwnProperty.call (output, key)) {
+            if (Object.hasOwnProperty.call (metaschema.properties, key))
+                output[key] = val;
             continue;
         }
 
@@ -93,25 +211,71 @@ function merge (metaschema, able, baker) {
             if (!aKeys.length || !bKeys.length)
                 continue;
 
-            var aDepKeys = Boolean (typeof target[aKeys[0]] == 'string');
-            var bDepKeys = Boolean (typeof target[bKeys[0]] == 'string');
+            var aDepKeys = Boolean (target[aKeys[0]] instanceof Array);
+            var bDepKeys = Boolean (val[bKeys[0]] instanceof Array);
 
             if (aDepKeys && bDepKeys) {
                 // union
-                for (var key in target) {
+                var finalDeps = {};
+
+                var targetKeys = Object.keys (target);
+                for (var i=0,j=targetKeys.length; i<j; i++)
+                    finalDeps[targetKeys[i]] = true; // always writes a new Array, never pushes
+                var valKeys = Object.keys (val);
+                for (var i=0,j=valKeys.length; i<j; i++)
+                    if (!Object.hasOwnProperty.call (finalDeps, valKeys[i]))
+                        finalDeps[valKeys[i]] = true; // always writes a new Array, never pushes
+
+                for (var subkey in finalDeps) {
+                    if (!Object.hasOwnProperty.call (target, subkey)) {
+                        finalDeps[subkey] = val[subkey];
+                        continue;
+                    }
+                    if (!Object.hasOwnProperty.call (val, subkey)) {
+                        finalDeps[subkey] = target[subkey];
+                        continue;
+                    }
                     var keyDeps = {};
-                    var subtarget = target[key];
-                    for (var i=0,j=subtarget[key].length; i<j; i++)
-                        keyDeps[subtarget[i]] = true;
-                    for (var i=0,j=val.length; i<j; i++)
-                        keyDeps[val[i]] = true;
-                    target[key] = Object.keys (keyDeps);
+                    for (var i=0,j=target[subkey].length; i<j; i++)
+                        keyDeps[target[subkey][i]] = true;
+                    for (var i=0,j=val[subkey].length; i<j; i++)
+                        keyDeps[val[subkey][i]] = true;
+                    finalDeps[subkey] = Object.keys (keyDeps);
                 }
+                output.dependencies = finalDeps;
                 continue;
             }
 
             if (!aDepKeys && !bDepKeys) {
-                output[key] = merge (metaschema, target, val);
+                var merged = {};
+                var targetKeys = Object.keys (target);
+                for (var i=0,j=targetKeys.length; i<j; i++)
+                    if (!Object.hasOwnProperty.call (val, targetKeys[i]))
+                        merged[targetKeys[i]] = target[targetKeys[i]];
+                    else
+                        merged[targetKeys[i]] = merge (
+                            metaschema,
+                            target[targetKeys[i]],
+                            val[targetKeys[i]],
+                            asInheritence
+                        );
+                var valKeys = Object.keys (val);
+                for (var i=0,j=valKeys.length; i<j; i++) {
+                    var valKey = valKeys[i];
+                    if (Object.hasOwnProperty.call (merged, valKey))
+                        continue;
+                    if (!Object.hasOwnProperty.call (target, valKey))
+                        merged[valKey] = val[valKey];
+                    else
+                        merged[valKey] = merge (
+                            metaschema,
+                            target[valKey],
+                            val[valKey],
+                            asInheritence
+                        );
+                }
+
+                output.dependencies = merged;
                 continue;
             }
 
@@ -119,39 +283,105 @@ function merge (metaschema, able, baker) {
             // collect existing key and schema dependencies
             var keyDeps = {};
             var schemaDeps = {};
-            for (var key in target) {
-                var subtarget = target[key];
+            var allKeys = {};
+            for (var subkey in target) {
+                allKeys[subkey] = true;
                 if (aDepKeys)
-                    for (var i=0,j=subtarget.length; i<j; i++)
-                        keyDeps[subtarget[i]] = true;
+                    keyDeps[subkey] = target[subkey];
                 else
-                    schemaDeps[key] = subtarget;
+                    schemaDeps[subkey] = target[subkey];
             }
-            for (var key in val) {
+            for (var subkey in val) {
+                allKeys[subkey] = true;
                 if (bDepKeys)
-                    for (var i=0,j=val.length; i<j; i++)
-                        keyDeps[val[i]] = true;
+                    keyDeps[subkey] = val[subkey];
                 else
-                    schemaDeps[key] = val[key];
+                    schemaDeps[subkey] = val[subkey];
             }
-            // create a new dependent schema for each list of dependent keys
-            for (var key in keyDeps) {
-                var newSubelem = {};
-                newSubelem[key] = keyDeps[key];
-                newSubelem = { dependencies:newSubelem };
-                if (!Object.hasOwnProperty.call (schemaDeps, key))
-                    schemaDeps[key] = newSubelem;
-                else
-                    schemaDeps[key] = merge (metaschema, schemaDeps[key], newSubelem);
+
+            for (var subkey in allKeys) {
+                if (!Object.hasOwnProperty.call (keyDeps, subkey)) {
+                    continue;
+                }
+
+                var newSubschema = { required:keyDeps[subkey] };
+                if (!Object.hasOwnProperty.call (schemaDeps, subkey)) {
+                    schemaDeps[subkey] = newSubschema;
+                    continue;
+                }
+
+                schemaDeps[subkey] = merge (
+                    metaschema,
+                    schemaDeps[subkey],
+                    newSubschema,
+                    asInheritence
+                );
             }
-            // dependencies are schemata from now on
             output.dependencies = schemaDeps;
             continue;
         }
 
+        if (key == 'required') {
+            // union
+            var required = {};
+            for (var i=0,j=target.length; i<j; i++)
+                required[target[i]] = true;
+            for (var i=0,j=val.length; i<j; i++)
+                required[val[i]] = true;
+            output.required = Object.keys (required);
+            continue;
+        }
+
+        if (key == 'properties') {
+            if (typeof target == 'boolean')
+                if (typeof val == 'boolean') // both bools
+                    output.items = target && val;
+                else { // target is bool, val is arr
+                    output.items = val;
+                    if (!target && !asInheritence)
+                        throw new Error (
+                            'merged schema is always invalid - "items" both sequence and false'
+                        );
+                }
+            else // target is arr
+                if (typeof val == 'boolean') // target is arr, val is bool
+                    if (!val)
+                        output.items = false;
+                    else
+                        output.items = target;
+                else {// both arrs
+                    if (
+                        ( target.length < val.length && !able.additionalItems )
+                     || ( target.length > val.length && !baker.additionalItems )
+                    )
+                        throw new Error (
+                            'merged schema is always invalid - "items" sequences of unequal length'
+                        );
+
+                    var newSequence = [];
+                    for (var i=0,j=Math.max (target.length, val.length); i<j; i++) {
+                        var subtarget = i < target.length ? target[i] : able.additionalItems;
+                        var subval = i < val.length ? val[i] : baker.additionalItems;
+                        newSequence[i] = merge (metaschema, subtarget, subval, asInheritence);
+                    }
+                    output.items = newSequence;
+                }
+
+            continue;
+        }
+
+        if (
+            valType != 'object'
+         || typeof output[key] != 'object'
+        ) {
+            if (Object.hasOwnProperty.call (metaschema.properties, key))
+                output[key] = val;
+            continue;
+        }
+
         // keys that just need a simple recurse
-        if (Object.hasOwnProperty.call (metaschema.properties, key))
-            output[key] = merge (metaschema, target, val);
+        if (Object.hasOwnProperty.call (metaschema.properties, subkey))
+            output[subkey] = merge (metaschema, target, val, asInheritence);
     }
 
     return output;

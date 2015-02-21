@@ -120,6 +120,11 @@ This functionality is available regardless of the `$schema` setting.
 }
 ```
 
+Inheritence is very intuitive. The primary gotcha is when using an array of schemata with `items`.
+Schemata from `items` and `additionalItems` on the parent and child are used to assemble an array of
+schemata that mimics the result of validating the parent and child sequentially. It is possible for
+an Error to be thrown during compilation if this array cannot be resolved.
+
 ###Conversion Methods
 If your schema uses **any** references, it must be compiled. In order to compile, you must generate
 a `JSContext` instance. This instance is a reusable caching object that can be used to compile
@@ -135,8 +140,8 @@ var likeness = require ('likeness');
 var JSContext = likeness.helpers.JSContext;
 var fromJSONSchema = likeness.helpers.fromJSONSchema;
 var likeJSONSchema = likeness.helpers.likeJSONSChema;
-var context = new JSContext();
 
+var context = new JSContext();
 async.series ([
     function (callback) {
         // anything we want to reference later should be submitted now
@@ -149,7 +154,13 @@ async.series ([
             fromJSONSchema (compiled, function (err, likeDef) {
                 // now that we have a likeness-format schema document
                 // we can create a likeness
-                var likeThis = new likeness (likeDef);
+                var like = new likeness (likeDef);
+                try {
+                    like.validate (myDocument);
+                } catch (err) {
+                    // myDocument wasn't, like, valid
+                    return callback (err);
+                }
                 callback();
             });
         });
@@ -157,69 +168,24 @@ async.series ([
     function (callback) {
         // to simply prepare one schema for validation
         // use this helper method
-        likeJSONSchema (schema, function (err, like) {
-            try {
-                like.validate (myDocument);
-            } catch (err) {
-                // there was, like, a problem with myDocument
+        likeness.helpers.likeJSONSChema (
+            schema,
+            function (err, like) {
+                try {
+                    like.validate (myDocument);
+                } catch (err) {
+                    // myDocument wasn't, like, valid
+                    return callback (err);
+                }
+                callback();
             }
-            callback();
-        });
+        );
     }
 ], function (err) {
     // we can keep using this context forever
     // unless we want to get fresh schemata from the network
 });
 ```
-
-
-Operator List
--------------
-###Validators
- * `.type`          restrict document type
- * `.adHoc`         accept unknown keys
- * `.arbitrary`
- * `.tolerant`      ignore unknown keys
- * `.optional`      accept `undefined` as a valid document
- * `.keyTest`
- * `.children`      optional - this is the escape strategy for special keys
- * `.min`           mininum value, length, or number of keys
- * `.max`           maximum value, length, or number of keys
- * `.exclusiveMin`  exclusive mininum value
- * `.exclusiveMax`  exclusive mininum value
- * `.modulo`        modulo
- * `.length`        exact length match
- * `.match`         regex value matching
- * `.eval`          call-the-function evaluation
- * `.async`         marks a `function` constraint as async
- * `.exists`        at least one key/value matches the given schema
- * `.times`         modifies `exists` constraint - requires [times] keys to match
- * `.all`           every key/value matches the given schema
- * `.value`         exact value match
-
-###Transformers
- * `.cast`          convert strings to match .type
- * `.set`           hard overwrite
- * `.inject`        insert hard data into input and overwrite target
- * `.insert`        insert input into target at Array/String position
- * `.append`        append input to target Array/String
- * `.prepend`       prepend input to target Array/String
- * `.normal`        normalize Numbers
- * `.add`           add input number to target
- * `.subtract`      subtract input number from target
- * `.multiply`      multiply target number by input
- * `.divide`        divide target number by input
- * `.modulate`      modulo input before overwriting target
- * `.inverse`       multiply by -1 (works for booleans)
- * `.reciprocal`    1/x
- * `.split`         regex split
- * `.group`         regex exec -> Array of groups
- * `.case`          transform string capitalization
- * `.transform`
- * `.filter`        pass key/index and value to function for selective drop
- * `.rename`        rename a key
- * `.drop`          drop a key
- * `.clip`          restrict max length
 
 
 LICENSE

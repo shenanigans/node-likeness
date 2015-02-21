@@ -22,7 +22,6 @@ function testValidate (doc, schema, shouldPass, callback) {
     } catch (err) {
         assert (err instanceof Error, 'thrown Error is a real Error instance');
         if (!shouldPass) return;
-        console.log (err);
         throw new Error ('failed to pass the document');
     }
     throw new Error ('failed to reject the document');
@@ -317,6 +316,19 @@ describe ("validate", function(){
                 );
             });
 
+            it ("constrains by arrays of type", function(){
+                testValidate (
+                    { able:4, baker:'four' },
+                    { ".arbitrary":true, ".all":{ ".type":[ "number", "string" ] } },
+                    true
+                );
+                testValidate (
+                    { able:4, baker:'four', charlie:[ 'four' ] },
+                    { ".arbitrary":true, ".all":{ ".type":[ "number", "string" ] } },
+                    false
+                );
+            });
+
         });
 
         describe ("eval/async", function(){
@@ -422,9 +434,21 @@ describe ("validate", function(){
                 );
             });
 
-            it ("validates the document when .unique is satisfied");
+            it ("validates the document when .unique is satisfied", function(){
+                testValidate (
+                    { able:1, baker:'1', charlie:{ able:1 }, dog:{ able:'1' } },
+                    { '.arbitrary':true, '.unique':true },
+                    true
+                );
+            });
 
-            it ("validates the document when .unique is not satisfied");
+            it ("rejects the document when .unique is not satisfied", function(){
+                testValidate (
+                    { able:1, baker:'1', charlie:{ able:1 }, dog:{ able:'1' }, easy:{ able:'1' } },
+                    { '.arbitrary':true, '.unique':true },
+                    false
+                );
+            });
 
             it ("validates .matchChildren", function(){
                 testValidate (
@@ -591,6 +615,8 @@ describe ("validate", function(){
             it ("rejects the document when a simple .sort is not satisfied");
 
             it ("rejects the document when a complex .sort is not satisfied");
+
+            it ("rejects the document when a complex .sort encounters an errant non-object");
 
             it ("validates the document when .unique is satisfied", function(){
                 testValidate (
@@ -872,7 +898,7 @@ describe ("validate", function(){
         });
 
         describe ("Numbers", function(){
-            testDoc = 7;
+            var testDoc = 7;
 
             it ("validates the document when .min is satisfied", function(){
                 testValidate (

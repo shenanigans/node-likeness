@@ -222,6 +222,7 @@ var SPECIAL_KEYS = {
     '.adHoc':           'adHoc',        // accept unknown keys
     '.arbitrary':       'adHoc',
     '.optional':        'optional',     // accept `undefined` as a valid document
+    '.invalid':         'invalid',      // if traversed, always invalid
     '.dependencies':    'dependencies', // schema or name requirements triggered by key presence
     '.unique':          'unique',       // all children or array elements must be unique values
     '.key':             'keyTest',      // for matching arbitrary keys

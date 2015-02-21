@@ -11,7 +11,8 @@ var SIMPLE_CONVERSIONS = {
     'description':          '.description',
     'type':                 '.type',
     'enum':                 '.anyValue',
-    'multiple':             '.multiple',
+    'multipleOf':           '.multiple',
+    'divisibleBy':          '.multiple',
     'maximum':              '.max',
     'maxLength':            '.max',
     'maxItems':             '.max',
@@ -21,21 +22,13 @@ var SIMPLE_CONVERSIONS = {
     'minItems':             '.min',
     'minProperties':        '.min',
     'uniqueItems':          '.unique',
-    'pattern':              '.match'
-};
-
-var SIMPLE_CONVERSIONS_VALIDATION_EXTENSIONS = {
-    'uniqueValues':         '.unique',
+    'uniqueProperties':     '.unique',
+    'pattern':              '.match',
     'modulo':               '.modulo',
     'length':               '.length',
     'numProperties':        '.length',
     'match':                '.match',
-    'times':                '.times'
-};
-for (var key in SIMPLE_CONVERSIONS)
-    SIMPLE_CONVERSIONS_VALIDATION_EXTENSIONS[key] = SIMPLE_CONVERSIONS[key];
-
-var SIMPLE_CONVERSIONS_TRANSFORM_EXTENSIONS = {
+    'times':                '.times',
     'tolerant':             '.tolerant',
     'cast':                 '.cast',
     'set':                  '.setVal',
@@ -57,25 +50,14 @@ var SIMPLE_CONVERSIONS_TRANSFORM_EXTENSIONS = {
     'clip':                 '.clip',
     'slice':                '.slice'
 };
-for (var key in SIMPLE_CONVERSIONS)
-    SIMPLE_CONVERSIONS_TRANSFORM_EXTENSIONS[key] = SIMPLE_CONVERSIONS[key];
-for (var key in SCHEMA_CONVERSIONS_VALIDATION_EXTENSIONS)
-    SIMPLE_CONVERSIONS_TRANSFORM_EXTENSIONS[key] = SCHEMA_CONVERSIONS_VALIDATION_EXTENSIONS[key];
 
 var SCHEMA_CONVERSIONS = {
     'additionalItems':      '.extras',
-    'not':                  '.not'
-};
-
-var SCHEMA_CONVERSIONS_VALIDATION_EXTENSIONS = {
-    'values':               '.all',
+    'not':                  '.not',
+    'forAll':               '.all',
     'equals':               '.value',
     'keyFormat':            '.keyFormat'
 };
-for (var key in SCHEMA_CONVERSIONS)
-    SCHEMA_CONVERSIONS_VALIDATION_EXTENSIONS[key] = SCHEMA_CONVERSIONS[key];
-
-var SCHEMA_CONVERSIONS_TRANSFORM_EXTENSIONS = SCHEMA_CONVERSIONS_VALIDATION_EXTENSIONS;
 
 var MAP_CONVERSIONS = {
     'properties':           '.children',
@@ -83,17 +65,11 @@ var MAP_CONVERSIONS = {
 };
 
 var ARR_CONVERSIONS = {
+    'allOf':                '.and',
     'anyOf':                '.anyOf',
-    'oneOf':                '.oneOf'
+    'oneOf':                '.oneOf',
+    'thereExists':          '.exists'
 };
-
-var ARR_CONVERSIONS_VALIDATION_EXTENSIONS = {
-    'thereExists':          '.exists',
-};
-for (var key in ARR_CONVERSIONS)
-    ARR_CONVERSIONS_VALIDATION_EXTENSIONS[key] = ARR_CONVERSIONS[key]
-
-var ARR_CONVERSIONS_TRANSFORM_EXTENSIONS = ARR_CONVERSIONS_VALIDATION_EXTENSIONS;
 
 var SKIP_STEPS = { };
 // for (var key in SCHEMA_CONVERSIONS) SKIP_STEPS[key] = true;
@@ -101,17 +77,17 @@ for (var key in MAP_CONVERSIONS) SKIP_STEPS[key] = true;
 for (var key in ARR_CONVERSIONS) SKIP_STEPS[key] = true;
 
 
-
 /**     @property/Function fromJSONSchema
     Convert a JSON Schema spec to a likeness schema object. Does *not* create a Likeness instance.
 @argument/Object schema
     JSON Schema document
 */
-function fromJSONSchema (schema, callback, context, path) {
+function fromJSONSchema (metaschema, schema, callback, context, path) {
+    var output = { '.adHoc':true };
+    if (path) output['.optional'] = true;
+    else path = '#';
     context = context || schema;
-    path = path || '#';
 
-    var output = { '.optional':true, '.adHoc':true };
     var keys = Object.keys (schema);
     var exMax = false;
     var exMin = false;
@@ -128,7 +104,7 @@ function fromJSONSchema (schema, callback, context, path) {
                 output[SCHEMA_CONVERSIONS[key]] = subschema;
                 return callback();
             }
-            return fromJSONSchema (subschema, function (err, sublikeness) {
+            return fromJSONSchema (metaschema, subschema, function (err, sublikeness) {
                 if (err) return callback (err);
                 output[SCHEMA_CONVERSIONS[key]] = sublikeness;
                 callback();
@@ -143,7 +119,7 @@ function fromJSONSchema (schema, callback, context, path) {
                     converted[subkey] = subsubschema;
                     return callback();
                 }
-                fromJSONSchema (subschema[subkey], function (err, sublikeness) {
+                fromJSONSchema (metaschema, subschema[subkey], function (err, sublikeness) {
                     if (err) return callback (err);
                     converted[subkey] = sublikeness;
                     callback();
@@ -158,7 +134,7 @@ function fromJSONSchema (schema, callback, context, path) {
         if (Object.hasOwnProperty.call (ARR_CONVERSIONS, key)) {
             var converted = [];
             return async.times (subschema.length, function (subI, callback) {
-                fromJSONSchema (subschema[subI], function (err, sublikeness) {
+                fromJSONSchema (metaschema, subschema[subI], function (err, sublikeness) {
                     if (err) return callback (err);
                     converted[subI] = sublikeness;
                     callback();
@@ -175,7 +151,7 @@ function fromJSONSchema (schema, callback, context, path) {
             if (subschema instanceof Array) {
                 var converted = [];
                 return async.times (subschema.length, function (subI, callback) {
-                    fromJSONSchema (subschema[subI], function (err, sublikeness) {
+                    fromJSONSchema (metaschema, subschema[subI], function (err, sublikeness) {
                         if (err) return callback (err);
                         converted[subI] = sublikeness;
                         callback();
@@ -188,7 +164,7 @@ function fromJSONSchema (schema, callback, context, path) {
             }
 
             // single schema -> .all
-            return fromJSONSchema (subschema, function (err, sublikeness) {
+            return fromJSONSchema (metaschema, subschema, function (err, sublikeness) {
                 if (err) return callback (err);
                 output['.all'] = sublikeness;
                 callback();
@@ -225,7 +201,7 @@ function fromJSONSchema (schema, callback, context, path) {
                     output['.adHoc'] = false;
                 return callback();
             } else
-                return fromJSONSchema (subschema, function (err, sublikeness) {
+                return fromJSONSchema (metaschema, subschema, function (err, sublikeness) {
                     if (err) return callback (err);
                     output['.extras'] = sublikeness;
                     callback();
@@ -244,7 +220,7 @@ function fromJSONSchema (schema, callback, context, path) {
             // it's a map of keys to subchemata
             var converted = {};
             return async.each (keys, function (subkey, callback) {
-                fromJSONSchema (subschema[subkey], function (err, sublikeness) {
+                fromJSONSchema (metaschema, subschema[subkey], function (err, sublikeness) {
                     if (err) return callback (err);
                     converted[subkey] = sublikeness;
                     callback();
@@ -288,18 +264,29 @@ function fromJSONSchema (schema, callback, context, path) {
             }
 
         // required / optional
-        if (schema.required)
-            // mark props as non-optional
-            for (var i=0,j=schema.required.length; i<j; i++) {
-                var key = schema.required[i];
-                if (Object.hasOwnProperty.call (output, key)) {
-                    output[key]['.optional'] = false;
-                    continue;
+        if (Object.hasOwnProperty.call (schema, 'required')) {
+            if (typeof schema.required == 'boolean')
+                if (schema.required)
+                    delete output['.optional'];
+                else
+                    output['.optional'] = true;
+            else {
+                // mark props as non-optional
+                for (var i=0,j=schema.required.length; i<j; i++) {
+                    var key = schema.required[i];
+                    if (Object.hasOwnProperty.call (output, key)) {
+                        output[key]['.optional'] = false;
+                        continue;
+                    }
+                    if (output['.children'] && Object.hasOwnProperty.call (output['.children'], key))
+                        output['.children'][key]['.optional'] = false;
                 }
-                if (output['.children'] && Object.hasOwnProperty.call (output['.children'], key))
-                    output['.children'][key]['.optional'] = false;
             }
+        }
 
+        // type:"any"
+        if (schema.type == 'any')
+            delete output['.type'];
         callback (undefined, output);
     });
 }

@@ -407,10 +407,10 @@ describe ("#transform", function(){
                         testTransformFailure (
                             {    // schema
                                 able:       { '.type':'Number' },
-                                baker:      {'.type':'Boolean' },
-                                charlie:    {'.type':'String' },
-                                dog:        {'.type':'Array' },
-                                easy:       {'.type':'Object' }
+                                baker:      { '.type':'Boolean' },
+                                charlie:    { '.type':'String' },
+                                dog:        { '.type':'Array' },
+                                easy:       { '.type':'Object' }
                             },
                             {    // source
                                 able:       42,
@@ -428,6 +428,10 @@ describe ("#transform", function(){
                     }
                 ], done);
             });
+
+            it ("rejects updates of mismatched type using an array of types");
+
+            it ("performs a type-appropriate transform using an array .type constraint");
 
         });
 

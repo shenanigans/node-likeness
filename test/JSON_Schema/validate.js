@@ -4,10 +4,10 @@ var likeness = require ('../../likeness');
 
 function testValidate (document, schema, isValid, callback) {
     var context = new likeness.helpers.JSContext();
-    context.compile ('https://foo.bar.com/test-schema', schema, function (err, compiled) {
+    context.compile ('https://foo.bar.com/test-schema', schema, function (err, compiled, metaschema) {
         if (err) return callback (err);
         // console.log (compiled);
-        likeness.helpers.fromJSONSchema (compiled, function (err, likeDoc) {
+        likeness.helpers.fromJSONSchema (metaschema, compiled, function (err, likeDoc) {
             if (err) return callback (err);
             // console.log ('fromJSONSchema', likeDoc);
 
@@ -399,7 +399,7 @@ describe ("validate", function(){
                 easy:       8
             };
 
-            it ("validates the document when .minKeys is satisfied", function (done) {
+            it ("validates the document when minProperties is satisfied", function (done) {
                 testValidate (
                     testDoc,
                     { minProperties:4 },
@@ -408,7 +408,7 @@ describe ("validate", function(){
                 );
             });
 
-            it ("rejects the document when .minKeys is not satisfied", function (done) {
+            it ("rejects the document when minProperties is not satisfied", function (done) {
                 testValidate (
                     testDoc,
                     { minProperties:8 },
@@ -417,7 +417,7 @@ describe ("validate", function(){
                 );
             });
 
-            it ("validates the document when .maxKeys is satisfied", function (done) {
+            it ("validates the document when maxProperties is satisfied", function (done) {
                 testValidate (
                     testDoc,
                     { maxProperties:8 },
@@ -426,7 +426,7 @@ describe ("validate", function(){
                 );
             });
 
-            it ("rejects the document when .maxKeys is not satisfied", function (done) {
+            it ("rejects the document when maxProperties is not satisfied", function (done) {
                 testValidate (
                     testDoc,
                     { maxProperties:4 },
@@ -434,10 +434,6 @@ describe ("validate", function(){
                     done
                 );
             });
-
-            it ("validates the document when .unique is satisfied");
-
-            it ("validates the document when .unique is not satisfied");
 
             it ("validates with patternProperties", function (done) {
                 testValidate (
@@ -752,12 +748,12 @@ describe ("validate", function(){
         });
 
         describe ("Strings", function(){
-            var testDoc = "foobarbaz";
+            var testDoc = { able:"foobarbaz" };
 
             it ("validates the document when minLength is satisfied", function (done) {
                 testValidate (
                     testDoc,
-                    { minLength:4 },
+                    { properties:{ able:{ type:'string', minLength:4 } }, required:[ 'able' ] },
                     true,
                     done
                 );
@@ -766,7 +762,7 @@ describe ("validate", function(){
             it ("rejects the document when minLength is not satisfied", function (done) {
                 testValidate (
                     testDoc,
-                    { minLength:15 },
+                    { properties:{ able:{ type:'string', minLength:15 } }, required:[ 'able' ] },
                     false,
                     done
                 );
@@ -775,7 +771,7 @@ describe ("validate", function(){
             it ("validates the document when maxLength is satisfied", function (done) {
                 testValidate (
                     testDoc,
-                    { maxLength:15 },
+                    { properties:{ able:{ type:'string', maxLength:15 } }, required:[ 'able' ] },
                     true,
                     done
                 );
@@ -784,7 +780,7 @@ describe ("validate", function(){
             it ("rejects the document when maxLength is not satisfied", function (done) {
                 testValidate (
                     testDoc,
-                    { maxLength:4 },
+                    { properties:{ able:{ type:'string', maxLength:4 } }, required:[ 'able' ] },
                     false,
                     done
                 );
@@ -861,155 +857,150 @@ describe ("validate", function(){
 
         });
 
-        // describe ("Numbers", function(){
-        //     testDoc = 7;
+        describe ("Numbers", function(){
+            testDoc = { able:7 };
 
-        //     it ("validates the document when .min is satisfied", function(){
-        //         testValidate (
-        //             testDoc,
-        //             { '.min':4 },
-        //             true
-        //         );
-        //     });
+            it ("validates the document when minimum is satisfied", function (done) {
+                testValidate (
+                    testDoc,
+                    { properties:{ able:{ type:'number', minimum:4 } }, required:[ 'able' ] },
+                    true,
+                    done
+                );
+            });
 
-        //     it ("rejects the document when .min is not satisfied", function(){
-        //         testValidate (
-        //             testDoc,
-        //             { '.min':10 },
-        //             false
-        //         );
-        //     });
+            it ("rejects the document when .min is not satisfied", function (done) {
+                testValidate (
+                    testDoc,
+                    { properties:{ able:{ minimum:10 } }, required:[ 'able' ] },
+                    false,
+                    done
+                );
+            });
 
-        //     it ("validates the document when .max is satisfied", function(){
-        //         testValidate (
-        //             testDoc,
-        //             { '.max':10 },
-        //             true
-        //         );
-        //     });
+            it ("validates the document when .max is satisfied", function (done) {
+                testValidate (
+                    testDoc,
+                    { properties:{ able:{ maximum:10 } }, required:[ 'able' ] },
+                    true,
+                    done
+                );
+            });
 
-        //     it ("rejects the document when .max is not satisfied", function(){
-        //         testValidate (
-        //             testDoc,
-        //             { '.max':4 },
-        //             false
-        //         );
-        //     });
+            it ("rejects the document when .max is not satisfied", function (done) {
+                testValidate (
+                    testDoc,
+                    { properties:{ able:{ maximum:4 } }, required:[ 'able' ] },
+                    false,
+                    done
+                );
+            });
 
-        //     it ("validates the document when .modulo is satisfied", function(){
-        //         testValidate (
-        //             testDoc,
-        //             { '.modulo':[ 5, 2 ] },
-        //             true
-        //         );
-        //     });
-
-        //     it ("rejects the document when .modulo is not satisfied", function(){
-        //         testValidate (
-        //             testDoc,
-        //             { '.modulo':[ 5, 3 ] },
-        //             false
-        //         );
-        //     });
-
-        // });
+        });
 
     });
 
-    // describe ("metaschemata", function(){
+    describe ("metaschemata", function(){
 
-    //     describe ("anyOf", function(){
+        describe ("anyOf", function(){
 
-    //         it ("matches one of several schema", function(){
-    //             testValidate (
-    //                 { able:42 },
-    //                 { able:{ '.anyOf':[
-    //                     { '.type':'number', '.gt':100 },
-    //                     { '.type':'number', '.gt':80 },
-    //                     { '.type':'number', '.gt':60 },
-    //                     { '.type':'number', '.gt':40 }
-    //                 ] } },
-    //                 true
-    //             );
-    //         });
+            it ("matches one of several schema", function (done) {
+                testValidate (
+                    { able:42 },
+                    { properties:{ able:{ anyOf:[
+                        { type:'number', minimum:100 },
+                        { type:'number', minimum:80 },
+                        { type:'number', minimum:60 },
+                        { type:'number', minimum:40 }
+                    ] } } },
+                    true,
+                    done
+                );
+            });
 
-    //         it ("fails to match any of several schema", function(){
-    //             testValidate (
-    //                 { able:42 },
-    //                 { able:{ '.anyOf':[
-    //                     { '.type':'number', '.gt':100 },
-    //                     { '.type':'number', '.gt':80 },
-    //                     { '.type':'number', '.gt':60 }
-    //                 ] } },
-    //                 false
-    //             );
-    //         });
+            it ("fails to match any of several schema", function (done) {
+                testValidate (
+                    { able:42 },
+                    { properties:{ able:{ anyOf:[
+                        { type:'number', minimum:100 },
+                        { type:'number', minimum:80 },
+                        { type:'number', minimum:60 }
+                    ] } } },
+                    false,
+                    done
+                );
+            });
 
-    //     });
+        });
 
-    //     describe ("oneOf", function(){
+        describe ("oneOf", function(){
 
-    //         it ("matches exactly one of several schema", function(){
-    //             testValidate (
-    //                 { able:42 },
-    //                 { able:{ '.oneOf':[
-    //                     { '.type':'number', '.gt':100 },
-    //                     { '.type':'number', '.gt':80 },
-    //                     { '.type':'number', '.gt':60 },
-    //                     { '.type':'number', '.gt':40 }
-    //                 ] } },
-    //                 true
-    //             );
-    //         });
+            it ("matches exactly one of several schema", function (done) {
+                testValidate (
+                    { able:42 },
+                    { properties:{ able:{ oneOf:[
+                        { type:'number', minimum:100 },
+                        { type:'number', minimum:80 },
+                        { type:'number', minimum:60 },
+                        { type:'number', minimum:40 }
+                    ] } } },
+                    true,
+                    done
+                );
+            });
 
-    //         it ("fails to match any of several schema", function(){
-    //             testValidate (
-    //                 { able:42 },
-    //                 { able:{ '.oneOf':[
-    //                     { '.type':'number', '.gt':100 },
-    //                     { '.type':'number', '.gt':80 },
-    //                     { '.type':'number', '.gt':60 },
-    //                 ] } },
-    //                 false
-    //             );
-    //         });
+            it ("fails to match any of several schema", function (done) {
+                testValidate (
+                    { able:42 },
+                    { properties:{ able:{ oneOf:[
+                        { type:'number', minimum:100 },
+                        { type:'number', minimum:80 },
+                        { type:'number', minimum:60 },
+                    ] } } },
+                    false,
+                    done
+                );
+            });
 
-    //         it ("fails to match due to too many passing schema", function(){
-    //             testValidate (
-    //                 { able:42 },
-    //                 { able:{ '.oneOf':[
-    //                     { '.type':'number', '.gt':100 },
-    //                     { '.type':'number', '.gt':80 },
-    //                     { '.type':'number', '.gt':60 },
-    //                     { '.type':'number', '.gt':40 },
-    //                     { '.type':'number', '.gt':40 }
-    //                 ] } },
-    //                 false
-    //             );
-    //         });
+            it ("fails to match due to too many passing schema", function (done) {
+                testValidate (
+                    { able:42 },
+                    { properties:{ able:{ oneOf:[
+                        { type:'number', minimum:100 },
+                        { type:'number', minimum:80 },
+                        { type:'number', minimum:60 },
+                        { type:'number', minimum:40 },
+                        { type:'number', minimum:40 }
+                    ] } } },
+                    false,
+                    done
+                );
+            });
 
-    //     });
+        });
 
-    //     describe ("not", function(){
+        describe ("not", function(){
 
-    //         it ("matches when the inverse schema fails", function(){
-    //             testValidate (
-    //                 { able:42 },
-    //                 { able:{ '.not':{ '.type':'number', '.gt':90 } } },
-    //                 true
-    //             );
-    //         });
+            it ("matches when the inverse schema fails", function (done) {
+                testValidate (
+                    { able:42 },
+                    { properties:{ able:{ not:{ type:'number', minimum:90 } } } },
+                    true,
+                    done
+                );
+            });
 
-    //         it ("fails when the inverse schema matches", function(){
-    //             testValidate (
-    //                 { able:42 },
-    //                 { able:{ '.not':{ '.type':'number', '.gt':40 } } },
-    //                 false
-    //             );
-    //         });
+            it ("fails when the inverse schema matches", function (done) {
+                testValidate (
+                    { able:42 },
+                    { properties:{ able:{ not:{ type:'number', minimum:40 } } } },
+                    false,
+                    done
+                );
+            });
 
-    //     });
+        });
 
-    // });
+    });
 
 });

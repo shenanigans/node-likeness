@@ -10,17 +10,18 @@ function testCompile (id, doc, testDoc, callback) {
         id = doc.id || 'http://schemata.example.com/sauce/schema';
     }
     var context = new likeness.helpers.JSContext();
-    context.compile (id, doc, function (err, compiled) {
+    context.compile (id, doc, function (err, compiled, metaschema) {
         if (err) return callback (err);
         // console.log (JSON.stringify (compiled));
-        likeness.helpers.fromJSONSchema (compiled, function (err, likeSchema) {
+        likeness.helpers.fromJSONSchema (metaschema, compiled, function (err, likeSchema) {
             if (err) return callback (err);
             // console.log (JSON.stringify (likeSchema));
             var likeTest = new likeness (likeSchema);
             try {
                 likeTest.validate (testDoc);
             } catch (err) {
-                // console.log (err);
+                console.log (err);
+                console.log (compiled);
                 return callback (err);
             }
             callback();
@@ -298,20 +299,12 @@ describe ("compile", function(){
 
     });
 
-    // it ("compiles remote references", function (done) {
+    it ("compiles remote references");
 
-    // });
+    it ("compiles remote references to recursive schemata");
 
-    // it ("compiles remote references to recursive schemata", function (done) {
+    it ("detects local reference loops");
 
-    // });
-
-    // it ("detects local reference loops", function (done) {
-
-    // });
-
-    // it ("detects remote reference loops", function (done) {
-
-    // });
+    it ("detects remote reference loops");
 
 });

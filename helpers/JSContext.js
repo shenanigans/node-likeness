@@ -9,6 +9,8 @@ var STD_DRAFT_04        = require ('./JSPredefs/draft04.json');
 var STD_DRAFT_03        = require ('./JSPredefs/draft03.json');
 var STD_DRAFT_04_HYPER  = require ('./JSPredefs/draft04_hyper.json');
 var STD_DRAFT_03_HYPER  = require ('./JSPredefs/draft03_hyper.json');
+var STD_LIKENESS        = require ('./JSPredefs/likeness_validations.json');
+var STD_TRANSFORM       = require ('./JSPredefs/likeness_transforms.json');
 var STD_CARD            = require ('./JSPredefs/card.json');
 var STD_ADDRESS         = require ('./JSPredefs/address.json');
 var STD_CALENDAR        = require ('./JSPredefs/calendar.json');
@@ -16,6 +18,8 @@ var STD_GEO             = require ('./JSPredefs/geo.json');
 var standardSchemata = {
     "json-schema.org":          {
         "/schema":                  STD_DRAFT_04,
+        "/likeness":                STD_LIKENESS,
+        "/likeness/transform":      STD_TRANSFORM,
         "/hyper-schema":            STD_DRAFT_04_HYPER,
         "/draft-04/schema":         STD_DRAFT_04,
         "/draft-04/hyper-schema":   STD_DRAFT_04_HYPER,
@@ -537,7 +541,7 @@ JSContext.prototype.compile = function (parent, id, schema, callback, replacemen
                             }
 
                             // merge resolved schema and local compilation
-                            callback (undefined, merge (metaschema, resolved, output));
+                            callback (undefined, merge (metaschema, resolved, output, true));
                         });
                     }, replacements);
                 }
@@ -572,31 +576,7 @@ JSContext.prototype.compile = function (parent, id, schema, callback, replacemen
 
         compileLevel ('#', schema, function (err, compiledSchema) {
             if (err) return callback (err);
-            callback (err, compiledSchema);
+            callback (err, compiledSchema, metaschema);
         });
-
-        // var keys = Object.keys (schema);
-        // var compilation = [];
-        // async.timesSeries (keys.length, function (keyI, callback) {
-        //     var key = keys[keyI];
-        //     var val = schema[key];
-        //     if (typeof val != 'object') {
-        //         compilation[keyI] = val;
-        //         return callback();
-        //     }
-        //     compileLevel ((parent.hash||'#')+'/'+key, val, function (err, compiledLevel) {
-        //         if (err) return callback (err);
-        //         compilation[keyI] = compiledLevel;
-        //         callback();
-        //     });
-        // }, function (err) {
-        //     // if (err) return process.nextTick (function(){ callback (err); });
-        //     if (err) return callback (err);
-        //     var output = {};
-        //     for (var i=0,j=compilation.length; i<j; i++)
-        //         output[keys[i]] = compilation[i];
-        //     // process.nextTick (function(){ callback (undefined, output); });
-        //     callback (undefined, output);
-        // });
     });
 };

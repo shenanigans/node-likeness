@@ -12,10 +12,9 @@ function testValidate (doc, schema, shouldPass, callback) {
             if (sync)
                 return callback (new Error ('callback fired synchronously'));
             if (err)
-                if (shouldPass) {
-                    console.log (err);
+                if (shouldPass)
                     return callback (new Error ('failed to pass the document'));
-                } else return callback();
+                else return callback();
             if (shouldPass)
                 return callback();
             callback (new Error ('failed to reject the document'));
@@ -372,6 +371,27 @@ describe ("validate", function(){
                 );
             });
 
+            it ("constrains by arrays of type", function (done) {
+                async.parallel ([
+                    function (callback) {
+                        testValidate (
+                            { able:4, baker:'four' },
+                            { ".arbitrary":true, ".all":{ ".type":[ "number", "string" ] } },
+                            true,
+                            callback
+                        );
+                    },
+                    function (callback) {
+                        testValidate (
+                            { able:4, baker:'four', charlie:[ 'four' ] },
+                            { ".arbitrary":true, ".all":{ ".type":[ "number", "string" ] } },
+                            false,
+                            callback
+                        );
+                    }
+                ], done);
+            });
+
         });
 
         describe ("eval/async", function(){
@@ -504,9 +524,23 @@ describe ("validate", function(){
                 );
             });
 
-            it ("validates the document when .unique is satisfied");
+            it ("validates the document when .unique is satisfied", function (done) {
+                testValidate (
+                    { able:1, baker:'1', charlie:{ able:1 }, dog:{ able:'1' } },
+                    { '.arbitrary':true, '.unique':true },
+                    true,
+                    done
+                );
+            });
 
-            it ("validates the document when .unique is not satisfied");
+            it ("rejects the document when .unique is not satisfied", function (done) {
+                testValidate (
+                    { able:1, baker:'1', charlie:{ able:1 }, dog:{ able:'1' }, easy:{ able:'1' } },
+                    { '.arbitrary':true, '.unique':true },
+                    false,
+                    done
+                );
+            });
 
             it ("validates .matchChildren", function (done) {
                 testValidate (
@@ -769,6 +803,8 @@ describe ("validate", function(){
 
             it ("rejects the document when a complex .sort is not satisfied");
 
+            it ("rejects the document when a complex .sort encounters an errant non-object");
+
             it ("validates the document when .unique is satisfied", function (done) {
                 testValidate (
                     [ 2, 4, 15, 'fifteen', '15', '2', 'too', 'two', 'TWO', 'Too', 2.2,
@@ -992,7 +1028,7 @@ describe ("validate", function(){
         });
 
         describe ("Numbers", function(){
-            testDoc = 7;
+            var testDoc = 7;
 
             it ("validates the document when .min is satisfied", function (done) {
                 testValidate (
