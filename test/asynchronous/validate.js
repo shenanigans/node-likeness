@@ -5,33 +5,33 @@ var async = require ('async');
 
 function testValidate (doc, schema, shouldPass, callback) {
     schema = new Likeness (schema);
-    var sync = true;
 
-    if (callback) {
+    try {
+        schema.validate (doc);
+        if (!shouldPass)
+            return callback (new Error ('failed to reject the document (sync)'));
+    } catch (err) {
+        if (shouldPass)
+            return callback (new Error ('failed to pass the document (sync)'));
+    }
+
+    try {
+        var sync = true;
         schema.validate (doc, function (err) {
             if (sync)
                 return callback (new Error ('callback fired synchronously'));
             if (err)
                 if (shouldPass)
-                    return callback (new Error ('failed to pass the document'));
+                    return callback (new Error ('failed to pass the document (async)'));
                 else return callback();
             if (shouldPass)
                 return callback();
-            callback (new Error ('failed to reject the document'));
+            callback (new Error ('failed to reject the document (async)'));
         });
         sync = false;
-        return;
-    }
-
-    try {
-        schema.validate (doc);
-        if (shouldPass) return;
     } catch (err) {
-        assert (err instanceof Error, 'thrown Error is a real Error instance');
-        if (!shouldPass) return;
-        throw new Error ('failed to pass the document');
+        callback (new Error ('threw Error synchronously in async mode'));
     }
-    throw new Error ('failed to reject the document');
 }
 
 describe ("validate", function(){
@@ -426,9 +426,9 @@ describe ("validate", function(){
             });
 
             it ("validates the document when .eval is asynchronously ok", function (done) {
-                testValidate (
-                    testDoc,
-                    {
+                try {
+                    var sync = true;
+                    var schema = new Likeness ({
                         '.eval':    function (value, callback) {
                             if (value === "foobarbaz")
                                 return process.nextTick (callback);
@@ -439,16 +439,24 @@ describe ("validate", function(){
                             }); });
                         },
                         '.async':true
-                    },
-                    true,
-                    done
-                );
+                    });
+                    schema.validate (testDoc, function (err) {
+                        if (sync)
+                            return done (new Error ('callback fired synchronously'));
+                        if (err)
+                            return done (new Error ('failed to pass the document'));
+                        return done();
+                    });
+                    sync = false;
+                } catch (err) {
+                    done (new Error ('threw Error synchronously in async mode'));
+                }
             });
 
             it ("rejects the document when .eval is asynchronously not ok", function (done) {
-                testValidate (
-                    testDoc,
-                    {
+                try {
+                    var sync = true;
+                    var schema = new Likeness ({
                         '.eval':    function (value, callback) {
                             if (value !== "foobarbaz")
                                 return process.nextTick (callback);
@@ -459,10 +467,18 @@ describe ("validate", function(){
                             }); });
                         },
                         '.async':true
-                    },
-                    false,
-                    done
-                );
+                    });
+                    schema.validate (testDoc, function (err) {
+                        if (sync)
+                            return done (new Error ('callback fired synchronously'));
+                        if (err)
+                            return done();
+                        done (new Error ('failed to reject the document'));
+                    });
+                    sync = false;
+                } catch (err) {
+                    done (new Error ('threw Error synchronously in async mode'));
+                }
             });
 
         });

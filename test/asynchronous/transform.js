@@ -41,25 +41,42 @@ function testTransform (schema, source, target, goal, callback) {
     schema = new Likeness (schema);
     var sourceStr = JSON.stringify (source);
     var targetStr = JSON.stringify (target);
+
+    var result;
+    try {
+        result = schema.transform (source, target);
+    } catch (err) {
+        if (err instanceof TransformError) {
+            return callback (new Error ('failed with err (sync) - '+JSON.stringify (err)));
+        }
+        return callback (err);
+    }
+    if (sourceStr != JSON.stringify (source))
+        return callback (new Error ('transform damaged the source object (sync)'));
+    if (targetStr != JSON.stringify (target))
+        return callback (new Error ('transform damaged the target object (sync)'));
+    if (!deepCompare (result, goal))
+        return callback (new Error ('goal did not match (sync) - '+JSON.stringify (result)));
+
     var sync = true;
     try {
         schema.transform (source, target, function (err, result) {
             if (err) {
                 console.log (err.stack);
-                return callback (new Error (JSON.stringify (err)));
+                return callback (new Error ('failed with err (async) - '+JSON.stringify (err)));
             }
             if (sync)
                 return callback (new Error ('callback fired synchronously'));
             if (sourceStr != JSON.stringify (source))
-                return callback (new Error ('transform damaged the source object'));
+                return callback (new Error ('transform damaged the source object (async)'));
             if (targetStr != JSON.stringify (target))
-                return callback (new Error ('transform damaged the target object'));
+                return callback (new Error ('transform damaged the target object (async)'));
             if (!deepCompare (result, goal))
-                return callback (new Error ('goal did not match - '+JSON.stringify (result)));
+                return callback (new Error ('goal did not match (async) - '+JSON.stringify (result)));
             callback();
         });
     } catch (err) {
-        return callback (new Error ('Error thrown synchronously - ' + JSON.stringify (err)));
+        return callback (new Error ('Error thrown synchronously in async mode'));
     }
     sync = false;
 }
@@ -67,19 +84,45 @@ function testTransform (schema, source, target, goal, callback) {
 function testTransformFailure (schema, source, target, error, callback) {
     schema = new Likeness (schema);
     var sourceStr = JSON.stringify (source);
+    var targetStr = JSON.stringify (target);
+    try {
+        schema.transform (source, target);
+        return callback (new Error ('transform completed erroneously (sync)'));
+    } catch (err) {
+        if (sourceStr != JSON.stringify (source))
+            return callback (new Error ('transform damaged the source object (sync)'));
+        if (targetStr != JSON.stringify (target))
+            return callback (new Error ('transform damaged the target object (sync)'));
+
+        if (error)
+            for (var key in error)
+                if (!Object.hasOwnProperty.call (err, key) || err[key] !== error[key]) {
+                    console.log (err, err.stack);
+                    return callback (new Error (
+                        'thrown error property "'
+                      + key
+                      + '": '
+                      + err[key]
+                      + ' != '
+                      + error[key]
+                      + ' (sync)'
+                    ));
+                }
+    }
+
     var sync = true;
     try {
         schema.transform (source, target, function (err, result) {
             if (sync)
                 return callback (new Error ('callback fired synchronously'));
             if (sourceStr != JSON.stringify (source))
-                return callback (new Error ('transform damaged the source object'));
+                return callback (new Error ('transform damaged the source object (async)'));
             if (!err)
-                return callback (new Error ('transform completed erroneously'));
+                return callback (new Error ('transform completed erroneously (async)'));
             if (error)
-                // shallow compare own properties on err and error
                 for (var key in error)
-                    if (!Object.hasOwnProperty.call (err, key) || err[key] !== error[key])
+                    if (!Object.hasOwnProperty.call (err, key) || err[key] !== error[key]) {
+                        console.log (err, err.stack);
                         return callback (new Error (
                             'thrown error property "'
                           + key
@@ -87,11 +130,13 @@ function testTransformFailure (schema, source, target, error, callback) {
                           + err[key]
                           + ' != '
                           + error[key]
+                          + ' (async)'
                         ));
+                    }
             return callback();
         });
     } catch (err) {
-        return callback (new Error ('Error thrown synchronously - ' + JSON.stringify (err)));
+        return callback (new Error ('Error thrown synchronously in async mode'));
     }
     sync = false;
 }
@@ -570,13 +615,23 @@ describe ("#transform", function(){
                 );
             });
 
-            it ("post-processes an Object with .exists", function (done) {
+            it ("transforms with .all and .arbitrary", function (done) {
+                testTransform (
+                    { '.arbitrary':true, '.all':{ '.add':true }},
+                    { able:10, baker:15, charlie:10 },
+                    { able:10, baker:20, charlie:30 },
+                    { able:20, baker:35, charlie:40 },
+                    done
+                );
+            });
+
+            it ("proceeds when an Object validates with .exists", function (done) {
                 testTransform (
                     {
                         '.arbitrary':   true,
                         '.all':         { '.add':true },
                         '.exists':      [
-                            { '.type':'number', '.gt':10, '.multiply':10, '.times':2 }
+                            { '.type':'number', '.gt':12, '.times':2 }
                         ]
                     },
                     {
@@ -586,16 +641,44 @@ describe ("#transform", function(){
                         dog:        11
                     },
                     {
-                        able:       1,
-                        baker:      1,
-                        charlie:    1,
-                        dog:        1
+                        able:       5,
+                        baker:      5,
+                        charlie:    5,
+                        dog:        5
                     },
                     {
-                        able:       9,
-                        baker:      10,
-                        charlie:    110,
-                        dog:        120
+                        able:       13,
+                        baker:      14,
+                        charlie:    15,
+                        dog:        16
+                    },
+                    done
+                );
+            });
+
+            it ("fails when an Object does not validate with .exists", function (done) {
+                testTransformFailure (
+                    {
+                        '.arbitrary':   true,
+                        '.all':         { '.add':true },
+                        '.exists':      [
+                            { '.type':'number', '.gt':15, '.times':2 }
+                        ]
+                    },
+                    {
+                        able:       8,
+                        baker:      9,
+                        charlie:    10,
+                        dog:        11
+                    },
+                    {
+                        able:       5,
+                        baker:      5,
+                        charlie:    5,
+                        dog:        5
+                    },
+                    {
+                        code:       'MISSING'
                     },
                     done
                 );
@@ -603,12 +686,81 @@ describe ("#transform", function(){
 
             describe (".unique", function(){
 
-                it ("accepts children with unique values");
+                it ("transforms the document when .unique is satisfied", function (done) {
+                    testTransform (
+                        { '.arbitrary':true, '.unique':true },
+                        { able:1, baker:'1', charlie:{ able:1 }, dog:{ able:'1' } },
+                        { },
+                        { able:1, baker:'1', charlie:{ able:1 }, dog:{ able:'1' } },
+                        done
+                    );
+                });
 
-                it ("rejects children with non-unique values");
+                it ("rejects the document when .unique is not satisfied", function (done) {
+                    async.parallel ([
+                        function (callback) {
+                            testTransformFailure (
+                                { '.arbitrary':true, '.unique':true },
+                                { able:1, baker:'1', charlie:{ able:1 }, dog:{ able:'1' }, easy:{ able:'1' } },
+                                { },
+                                { code:'ILLEGAL' },
+                                callback
+                            );
+                        },
+                        function (callback) {
+                            testTransformFailure (
+                                { '.arbitrary':true, '.unique':true, '.all':{ '.type':'number' } },
+                                { able:1, baker:2, charlie:2 },
+                                { },
+                                { code:'ILLEGAL' },
+                                callback
+                            );
+                        },
+                        function (callback) {
+                            testTransformFailure (
+                                { '.arbitrary':true, '.unique':true, '.all':{ '.type':'number' },
+                                    baker:{ '.gt':1 },
+                                    charlie:{ '.gt':1 }
+                                },
+                                { able:1, baker:2, charlie:2 },
+                                { },
+                                { code:'ILLEGAL' },
+                                callback
+                            );
+                        }
+                    ], done);
+                });
 
-                it ("rejects documents with non-unique mandatory children");
+            });
 
+            it ("transforms with .all before named children", function (done) {
+                testTransform (
+                    {
+                        '.all':{ '.add':true },
+                        able:{ '.multiply':true },
+                        baker:{ '.multiply':true },
+                        charlie:{ '.multiply':true }
+                    },
+                    { able:10, baker:10, charlie:10 },
+                    { able:10, baker:20, charlie:30 },
+                    { able:200, baker:300, charlie:400 },
+                    done
+                );
+            });
+
+            it ("transforms with .all before matched children", function (done) {
+                testTransform (
+                    {
+                        '.all':{ '.add':true },
+                        '.matchChildren':{
+                            '^\\w+$':{ '.multiply':true }
+                        }
+                    },
+                    { able:10, baker:10, charlie:10 },
+                    { able:10, baker:20, charlie:30 },
+                    { able:200, baker:300, charlie:400 },
+                    done
+                );
             });
 
         });
@@ -701,38 +853,36 @@ describe ("#transform", function(){
                 );
             });
 
-            it ("post-processes an Array with .exists", function (done) {
-                async.parallel ([
-                    function (callback) {
-                        testTransform (
-                            {
-                                '.type':    'array',
-                                '.exists':  [
-                                    { '.type':'number', '.gt':10, '.times':2 }
-                                ]
-                            },
-                            [ 6, 7, 8, 9, 10, 11, 12 ],
-                            [ 1, 1, 1, 1 ],
-                            [ 6, 7, 8, 9, 10, 11, 12 ],
-                            callback
-                        );
+            it ("proceeds when .exists validates", function (done) {
+                testTransform (
+                    {
+                        '.type':    'array',
+                        '.append':  'true',
+                        '.exists':  [
+                            { '.type':'number', '.gt':10, '.times':4 }
+                        ]
                     },
-                    function (callback) {
-                        testTransform (
-                            {
-                                '.type':    'array',
-                                '.all':     { '.add':true },
-                                '.exists':  [
-                                    { '.type':'number', '.gt':10, '.times':2 }
-                                ]
-                            },
-                            [ 6, 7, 8, 9, 10, 11 ],
-                            [ 1, 1, 1, 1, 1, 1 ],
-                            [ 7, 8, 9, 10, 11, 12 ],
-                            callback
-                        );
-                    }
-                ], done);
+                    [ 12, 13, 14 ],
+                    [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 ],
+                    [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 ],
+                    done
+                );
+            });
+
+            it ("rejects when .exists does not validate", function (done) {
+                testTransformFailure (
+                    {
+                        '.type':    'array',
+                        '.append':  'true',
+                        '.exists':  [
+                            { '.type':'number', '.gt':12, '.times':4 }
+                        ]
+                    },
+                    [ 12, 13, 14 ],
+                    [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 ],
+                    { code:'MISSING' },
+                    done
+                );
             });
 
             it ("retains only unique values with .unique", function (done) {
@@ -999,6 +1149,10 @@ describe ("#transform", function(){
                 }
             ], done);
         });
+
+        it ("accepts an Array that validates .exists constraints");
+
+        it ("rejects an Array that fails .exists constraints");
 
     });
 
@@ -1629,110 +1783,6 @@ describe ("#transform", function(){
 
             });
 
-            describe ("post-transform .all", function(){
-
-                it ("proceeds when post-transform Numbers pass .all constraint", function (done) {
-                    testTransform (
-                        {    // schema
-                            '.arbitrary':   true,
-                            '.all':         {
-                                '.type':        'number',
-                                '.lte':         10
-                            },
-                            able:           {
-                                '.type':        'number',
-                                '.normal':      5
-                            }
-                        },
-                        {    // source
-                            able:       45
-                        },
-                        { }, // target
-                        {    // goal
-                            able:       9
-                        },
-                        done
-                    );
-                });
-
-                it ("proceeds when post in-place math Numbers pass .all constraint", function (done) {
-                    testTransform (
-                        {    // schema
-                            '.arbitrary':   true,
-                            '.all':         {
-                                '.type':        'number',
-                                '.lte':         10
-                            },
-                            able:           {
-                                '.type':        'number',
-                                '.subtract':    true
-                            }
-                        },
-                        {    // source
-                            able:       45
-                        },
-                        {    // target
-                            able:       50
-                        },
-                        {    // goal
-                            able:       5
-                        },
-                        done
-                    );
-                });
-
-                it ("fails when post-transform Numbers fail .all constraint", function (done) {
-                    testTransformFailure (
-                        {    // schema
-                            '.arbitrary':   true,
-                            '.all':         {
-                                '.type':        'number',
-                                '.lte':         10
-                            },
-                            able:           {
-                                '.type':        'number',
-                                '.normal':      5
-                            }
-                        },
-                        {    // source
-                            able:       55
-                        },
-                        { }, // target
-                        {    // error
-                            code:       'INVALID'
-                        },
-                        done
-                    );
-                });
-
-                it ("fails when post in-place math Numbers fail .all constraint", function (done) {
-                    testTransformFailure (
-                        {    // schema
-                            '.arbitrary':   true,
-                            '.all':         {
-                                '.type':        'number',
-                                '.lte':         10
-                            },
-                            able:           {
-                                '.type':        'number',
-                                '.subtract':    true
-                            }
-                        },
-                        {    // source
-                            able:       45
-                        },
-                        {    // target
-                            able:       60
-                        },
-                        {    // error
-                            code:       'INVALID'
-                        },
-                        done
-                    );
-                });
-
-            });
-
         });
 
         describe ("Strings", function(){
@@ -2110,110 +2160,6 @@ describe ("#transform", function(){
 
             });
 
-            describe ("post-transform .all", function(){
-
-                it ("proceeds when post-transform Strings pass .all constraint", function (done) {
-                    testTransform (
-                        {    // schema
-                            '.arbitrary':   true,
-                            '.all':         {
-                                '.type':        'string',
-                                '.min':         14
-                            },
-                            able:           {
-                                '.type':        'string',
-                                '.inject':      [ [ 0, ' PADDING ' ] ]
-                            }
-                        },
-                        {    // source
-                            able:       'cheese'
-                        },
-                        { }, // target
-                        {    // goal
-                            able:       ' PADDING cheese'
-                        },
-                        done
-                    );
-                });
-
-                it ("proceeds when post in-place Strings pass .all constraint", function (done) {
-                    testTransform (
-                        {    // schema
-                            '.arbitrary':   true,
-                            '.all':         {
-                                '.type':        'string',
-                                '.min':         16
-                            },
-                            able:           {
-                                '.type':        'string',
-                                '.append':      true
-                            }
-                        },
-                        {    // source
-                            able:       'fromage bleu'
-                        },
-                        {    // target
-                            able:       'le chez '
-                        },
-                        {    // goal
-                            able:       'le chez fromage bleu'
-                        },
-                        done
-                    );
-                });
-
-                it ("fails when post-transform Strings fail .all constraint", function (done) {
-                    testTransformFailure (
-                        {    // schema
-                            '.arbitrary':   true,
-                            '.all':         {
-                                '.type':        'string',
-                                '.max':         16
-                            },
-                            able:           {
-                                '.type':        'string',
-                                '.inject':      [ [ 0, ' PADDING ' ] ]
-                            }
-                        },
-                        {    // source
-                            able:       'This is my String. There are many like it but this one is mine.'
-                        },
-                        { }, // target
-                        {    // error
-                            code:       'INVALID'
-                        },
-                        done
-                    );
-                });
-
-                it ("fails when post in-place strings fail .all constraint", function (done) {
-                    testTransformFailure (
-                        {    // schema
-                            '.arbitrary':   true,
-                            '.all':         {
-                                '.type':        'string',
-                                '.max':         16
-                            },
-                            able:           {
-                                '.type':        'string',
-                                '.append':      true
-                            }
-                        },
-                        {    // source
-                            able:       'This is my String. There are many like it but this one is mine.'
-                        },
-                        {    // target
-                            able:       'prayer: '
-                        },
-                        {    // error
-                            code:       'INVALID'
-                        },
-                        done
-                    );
-                });
-
-            });
-
         });
 
         describe ("Booleans", function(){
@@ -2304,6 +2250,32 @@ describe ("#transform", function(){
         });
 
         describe ("Objects", function(){
+
+            it ("fails by processing .all constraint before named child", function (done) {
+                testTransformFailure (
+                    {    // schema
+                        '.arbitrary':   true,
+                        '.all':         {
+                            '.type':        'string',
+                            '.min':         16
+                        },
+                        able:           {
+                            '.type':        'string',
+                            '.append':      true
+                        }
+                    },
+                    {    // source
+                        able:       'fromage bleu'
+                    },
+                    {    // target
+                        able:       'le chez '
+                    },
+                    {
+                        code:       'INVALID'
+                    },
+                    done
+                );
+            });
 
             describe (".cast", function(){
 

@@ -8,8 +8,9 @@ function testValidate (doc, schema, shouldPass, callback) {
     if (callback)
         return schema.validate (doc, function (err) {
             if (err)
-                if (shouldPass)
+                if (shouldPass) {
                     return callback (new Error ('failed to pass the document'));
+                }
                 else return callback();
             if (shouldPass)
                 return callback();

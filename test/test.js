@@ -1,4 +1,4 @@
 
 require ('./synchronous');
 require ('./asynchronous');
-require ('./JSON_Schema');
+// require ('./JSON_Schema');

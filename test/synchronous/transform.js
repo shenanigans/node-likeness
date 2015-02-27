@@ -72,6 +72,7 @@ function testTransformFailure (schema, source, target, error) {
         if (error) {
             for (var key in error)
                 if (!Object.hasOwnProperty.call (err, key) || err[key] !== error[key]) {
+                    console.log (err, err.stack);
                     throw new Error (
                         'thrown error property "'
                       + key
@@ -551,13 +552,13 @@ describe ("#transform", function(){
                 );
             });
 
-            it ("post-processes an Object with .exists", function(){
+            it ("proceeds when an Object validates with .exists", function(){
                 testTransform (
                     {
                         '.arbitrary':   true,
                         '.all':         { '.add':true },
                         '.exists':      [
-                            { '.type':'number', '.gt':10, '.multiply':10, '.times':2 }
+                            { '.type':'number', '.gt':12, '.times':2 }
                         ]
                     },
                     {
@@ -567,27 +568,90 @@ describe ("#transform", function(){
                         dog:        11
                     },
                     {
-                        able:       1,
-                        baker:      1,
-                        charlie:    1,
-                        dog:        1
+                        able:       5,
+                        baker:      5,
+                        charlie:    5,
+                        dog:        5
                     },
                     {
-                        able:       9,
-                        baker:      10,
-                        charlie:    110,
-                        dog:        120
+                        able:       13,
+                        baker:      14,
+                        charlie:    15,
+                        dog:        16
+                    }
+                );
+            });
+
+            it ("fails when an Object does not validate with .exists", function(){
+                testTransformFailure (
+                    {
+                        '.arbitrary':   true,
+                        '.all':         { '.add':true },
+                        '.exists':      [
+                            { '.type':'number', '.gt':15, '.times':2 }
+                        ]
+                    },
+                    {
+                        able:       8,
+                        baker:      9,
+                        charlie:    10,
+                        dog:        11
+                    },
+                    {
+                        able:       5,
+                        baker:      5,
+                        charlie:    5,
+                        dog:        5
+                    },
+                    {
+                        code:       'MISSING'
                     }
                 );
             });
 
             describe (".unique", function(){
 
-                it ("accepts children with unique values");
+                it ("transforms the document when .unique is satisfied", function(){
+                    testTransform (
+                        { '.arbitrary':true, '.unique':true },
+                        { able:1, baker:'1', charlie:{ able:1 }, dog:{ able:'1' } },
+                        { },
+                        { able:1, baker:'1', charlie:{ able:1 }, dog:{ able:'1' } }
+                    );
+                });
 
-                it ("rejects children with non-unique values");
-
-                it ("rejects documents with non-unique mandatory children");
+                it ("rejects the document when .unique is not satisfied", function(){
+                    testTransformFailure (
+                        { '.arbitrary':true, '.unique':true },
+                        { able:1, baker:'1', charlie:{ able:1 }, dog:{ able:'1' }, easy:{ able:'1' } },
+                        { },
+                        { code:'ILLEGAL' }
+                    );
+                    testTransformFailure (
+                        { '.arbitrary':true, '.unique':true, '.all':{ '.type':'number' } },
+                        { able:1, baker:2, charlie:2 },
+                        { },
+                        { code:'ILLEGAL' }
+                    );
+                    testTransformFailure (
+                        { '.arbitrary':true, '.unique':true, '.all':{ '.type':'number' },
+                            baker:{ '.gt':1 },
+                            charlie:{ '.gt':1 }
+                        },
+                        { able:1, baker:2, charlie:2 },
+                        { },
+                        { code:'ILLEGAL' }
+                    );
+                    testTransformFailure (
+                        { '.arbitrary':true, '.unique':true, '.all':{ '.type':'number' },
+                            baker:{ '.gt':1 },
+                            charlie:{ '.gt':1 }
+                        },
+                        { baker:2, charlie:3 },
+                        { able:3 },
+                        { code:'ILLEGAL' }
+                    );
+                });
 
             });
 
@@ -693,29 +757,33 @@ describe ("#transform", function(){
                 );
             });
 
-            it ("post-processes an Array with .exists", function(){
+            it ("proceeds when .exists validates", function(){
                 testTransform (
                     {
                         '.type':    'array',
+                        '.append':  'true',
                         '.exists':  [
-                            { '.type':'number', '.gt':10, '.times':2 }
+                            { '.type':'number', '.gt':10, '.times':4 }
                         ]
                     },
-                    [ 6, 7, 8, 9, 10, 11, 12 ],
-                    [ 1, 1, 1, 1 ],
-                    [ 6, 7, 8, 9, 10, 11, 12 ]
+                    [ 12, 13, 14 ],
+                    [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 ],
+                    [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 ]
                 );
-                testTransform (
+            });
+
+            it ("rejects when .exists does not validate", function(){
+                testTransformFailure (
                     {
                         '.type':    'array',
-                        '.all':     { '.add':true },
+                        '.append':  'true',
                         '.exists':  [
-                            { '.type':'number', '.gt':10, '.times':2 }
+                            { '.type':'number', '.gt':12, '.times':4 }
                         ]
                     },
-                    [ 6, 7, 8, 9, 10, 11 ],
-                    [ 1, 1, 1, 1, 1, 1 ],
-                    [ 7, 8, 9, 10, 11, 12 ]
+                    [ 12, 13, 14 ],
+                    [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 ],
+                    { code:'MISSING' }
                 );
             });
 
@@ -957,6 +1025,10 @@ describe ("#transform", function(){
                 }
             );
         });
+
+        it ("accepts an Array that validates .exists constraints");
+
+        it ("rejects an Array that fails .exists constraints");
 
     });
 
@@ -1571,106 +1643,6 @@ describe ("#transform", function(){
 
             });
 
-            describe ("post-transform .all", function(){
-
-                it ("proceeds when post-transform Numbers pass .all constraint", function(){
-                    testTransform (
-                        {    // schema
-                            '.arbitrary':   true,
-                            '.all':         {
-                                '.type':        'number',
-                                '.lte':         10
-                            },
-                            able:           {
-                                '.type':        'number',
-                                '.normal':      5
-                            }
-                        },
-                        {    // source
-                            able:       45
-                        },
-                        { }, // target
-                        {    // goal
-                            able:       9
-                        }
-                    );
-                });
-
-                it ("proceeds when post in-place math Numbers pass .all constraint", function(){
-                    testTransform (
-                        {    // schema
-                            '.arbitrary':   true,
-                            '.all':         {
-                                '.type':        'number',
-                                '.lte':         10
-                            },
-                            able:           {
-                                '.type':        'number',
-                                '.subtract':    true
-                            }
-                        },
-                        {    // source
-                            able:       45
-                        },
-                        {    // target
-                            able:       50
-                        },
-                        {    // goal
-                            able:       5
-                        }
-                    );
-                });
-
-                it ("fails when post-transform Numbers fail .all constraint", function(){
-                    testTransformFailure (
-                        {    // schema
-                            '.arbitrary':   true,
-                            '.all':         {
-                                '.type':        'number',
-                                '.lte':         10
-                            },
-                            able:           {
-                                '.type':        'number',
-                                '.normal':      5
-                            }
-                        },
-                        {    // source
-                            able:       55
-                        },
-                        { }, // target
-                        {    // error
-                            code:       'INVALID'
-                        }
-                    );
-                });
-
-                it ("fails when post in-place math Numbers fail .all constraint", function(){
-                    testTransformFailure (
-                        {    // schema
-                            '.arbitrary':   true,
-                            '.all':         {
-                                '.type':        'number',
-                                '.lte':         10
-                            },
-                            able:           {
-                                '.type':        'number',
-                                '.subtract':    true
-                            }
-                        },
-                        {    // source
-                            able:       45
-                        },
-                        {    // target
-                            able:       60
-                        },
-                        {    // error
-                            code:       'INVALID'
-                        }
-                    );
-                });
-
-            });
-
         });
 
         describe ("Strings", function(){
@@ -2031,106 +2003,6 @@ describe ("#transform", function(){
 
             });
 
-            describe ("post-transform .all", function(){
-
-                it ("proceeds when post-transform Strings pass .all constraint", function(){
-                    testTransform (
-                        {    // schema
-                            '.arbitrary':   true,
-                            '.all':         {
-                                '.type':        'string',
-                                '.min':         14
-                            },
-                            able:           {
-                                '.type':        'string',
-                                '.inject':      [ [ 0, ' PADDING ' ] ]
-                            }
-                        },
-                        {    // source
-                            able:       'cheese'
-                        },
-                        { }, // target
-                        {    // goal
-                            able:       ' PADDING cheese'
-                        }
-                    );
-                });
-
-                it ("proceeds when post in-place Strings pass .all constraint", function(){
-                    testTransform (
-                        {    // schema
-                            '.arbitrary':   true,
-                            '.all':         {
-                                '.type':        'string',
-                                '.min':         16
-                            },
-                            able:           {
-                                '.type':        'string',
-                                '.append':      true
-                            }
-                        },
-                        {    // source
-                            able:       'fromage bleu'
-                        },
-                        {    // target
-                            able:       'le chez '
-                        },
-                        {    // goal
-                            able:       'le chez fromage bleu'
-                        }
-                    );
-                });
-
-                it ("fails when post-transform Strings fail .all constraint", function(){
-                    testTransformFailure (
-                        {    // schema
-                            '.arbitrary':   true,
-                            '.all':         {
-                                '.type':        'string',
-                                '.max':         16
-                            },
-                            able:           {
-                                '.type':        'string',
-                                '.inject':      [ [ 0, ' PADDING ' ] ]
-                            }
-                        },
-                        {    // source
-                            able:       'This is my String. There are many like it but this one is mine.'
-                        },
-                        { }, // target
-                        {    // error
-                            code:       'INVALID'
-                        }
-                    );
-                });
-
-                it ("fails when post in-place strings fail .all constraint", function(){
-                    testTransformFailure (
-                        {    // schema
-                            '.arbitrary':   true,
-                            '.all':         {
-                                '.type':        'string',
-                                '.max':         16
-                            },
-                            able:           {
-                                '.type':        'string',
-                                '.append':      true
-                            }
-                        },
-                        {    // source
-                            able:       'This is my String. There are many like it but this one is mine.'
-                        },
-                        {    // target
-                            able:       'prayer: '
-                        },
-                        {    // error
-                            code:       'INVALID'
-                        }
-                    );
-                });
-
-            });
-
         });
 
         describe ("Booleans", function(){
@@ -2209,6 +2081,31 @@ describe ("#transform", function(){
         });
 
         describe ("Objects", function(){
+
+            it ("fails by processing .all constraint before named child", function (done) {
+                testTransformFailure (
+                    {    // schema
+                        '.arbitrary':   true,
+                        '.all':         {
+                            '.type':        'string',
+                            '.min':         16
+                        },
+                        able:           {
+                            '.type':        'string',
+                            '.append':      true
+                        }
+                    },
+                    {    // source
+                        able:       'fromage bleu'
+                    },
+                    {    // target
+                        able:       'le chez '
+                    },
+                    {
+                        code:       'INVALID'
+                    }
+                );
+            });
 
             describe (".cast", function(){
 
