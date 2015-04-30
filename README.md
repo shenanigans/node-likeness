@@ -46,9 +46,9 @@ var likeAreTheyHuman = new likeness ({
     }
 });
 var likeAreTheyAdmin = new likeness ({
-    '.arbitrary':   true,
+    ".arbitrary":   true,
     tags:           {
-        ".type':        "array",
+        ".type":        "array",
         ".exists":      {
             ".value":       "admin"
         }
