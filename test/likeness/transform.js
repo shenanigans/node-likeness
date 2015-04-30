@@ -44,101 +44,36 @@ function testTransform (schema, source, target, goal, callback) {
 
     var result;
     try {
-        result = schema.transform (source, target);
+        result = schema.transform (target, source);
     } catch (err) {
-        if (err instanceof TransformError) {
-            return callback (new Error ('failed with err (sync) - '+JSON.stringify (err)));
-        }
         return callback (err);
     }
     if (sourceStr != JSON.stringify (source))
-        return callback (new Error ('transform damaged the source object (sync)'));
+        return callback (new Error ('transform damaged the source object'));
     if (targetStr != JSON.stringify (target))
-        return callback (new Error ('transform damaged the target object (sync)'));
+        return callback (new Error ('transform damaged the target object'));
     if (!deepCompare (result, goal))
-        return callback (new Error ('goal did not match (sync) - '+JSON.stringify (result)));
+        return callback (new Error ('goal did not match - '+JSON.stringify (result)));
 
-    var sync = true;
-    try {
-        schema.transform (source, target, function (err, result) {
-            if (err) {
-                console.log (err.stack);
-                return callback (new Error ('failed with err (async) - '+JSON.stringify (err)));
-            }
-            if (sync)
-                return callback (new Error ('callback fired synchronously'));
-            if (sourceStr != JSON.stringify (source))
-                return callback (new Error ('transform damaged the source object (async)'));
-            if (targetStr != JSON.stringify (target))
-                return callback (new Error ('transform damaged the target object (async)'));
-            if (!deepCompare (result, goal))
-                return callback (new Error ('goal did not match (async) - '+JSON.stringify (result)));
-            callback();
-        });
-    } catch (err) {
-        return callback (new Error ('Error thrown synchronously in async mode'));
-    }
-    sync = false;
+    callback();
 }
 
-function testTransformFailure (schema, source, target, error, callback) {
+function testTransformFailure (schema, source, target, callback) {
     schema = new Likeness (schema);
     var sourceStr = JSON.stringify (source);
     var targetStr = JSON.stringify (target);
     try {
-        schema.transform (source, target);
-        return callback (new Error ('transform completed erroneously (sync)'));
+        var result = schema.transform (target, source);
+        console.log (result);
+        return callback (new Error ('transform completed erroneously'));
     } catch (err) {
         if (sourceStr != JSON.stringify (source))
-            return callback (new Error ('transform damaged the source object (sync)'));
+            return callback (new Error ('transform damaged the source object'));
         if (targetStr != JSON.stringify (target))
-            return callback (new Error ('transform damaged the target object (sync)'));
-
-        if (error)
-            for (var key in error)
-                if (!Object.hasOwnProperty.call (err, key) || err[key] !== error[key]) {
-                    console.log (err, err.stack);
-                    return callback (new Error (
-                        'thrown error property "'
-                      + key
-                      + '": '
-                      + err[key]
-                      + ' != '
-                      + error[key]
-                      + ' (sync)'
-                    ));
-                }
+            return callback (new Error ('transform damaged the target object'));
     }
 
-    var sync = true;
-    try {
-        schema.transform (source, target, function (err, result) {
-            if (sync)
-                return callback (new Error ('callback fired synchronously'));
-            if (sourceStr != JSON.stringify (source))
-                return callback (new Error ('transform damaged the source object (async)'));
-            if (!err)
-                return callback (new Error ('transform completed erroneously (async)'));
-            if (error)
-                for (var key in error)
-                    if (!Object.hasOwnProperty.call (err, key) || err[key] !== error[key]) {
-                        console.log (err, err.stack);
-                        return callback (new Error (
-                            'thrown error property "'
-                          + key
-                          + '": '
-                          + err[key]
-                          + ' != '
-                          + error[key]
-                          + ' (async)'
-                        ));
-                    }
-            return callback();
-        });
-    } catch (err) {
-        return callback (new Error ('Error thrown synchronously in async mode'));
-    }
-    sync = false;
+    callback();
 }
 
 describe ("#transform", function(){
@@ -264,34 +199,6 @@ describe ("#transform", function(){
             );
         });
 
-        it ('applies .all transforms to every child', function (done) {
-            testTransform (
-                { // schema
-                    '.arbitrary':   true,
-                    '.all':         {
-                        '.arbitrary':   true,
-                        '.inject':      [
-                            [ 1, 'asdf' ]
-                        ]
-                    }
-                },
-                { // source
-                    able:       'this and that',
-                    baker:      [ 'fdsa', 'jkl;', 'trew', 'zxcv' ],
-                    charlie:    { zero:'one' }
-                },
-                { // target
-
-                },
-                { // goal
-                    able:       'tasdfhis and that',
-                    baker:      [ 'fdsa', 'asdf', 'jkl;', 'trew', 'zxcv' ],
-                    charlie:    { zero:'one', 1:'asdf' }
-                },
-                done
-            );
-        });
-
         it ('refuses to duplicate with empty schema', function (done) {
             testTransformFailure (
                 { // schema
@@ -309,9 +216,6 @@ describe ("#transform", function(){
                 },
                 { // target
 
-                },
-                { // error
-                    code:       'ILLEGAL'
                 },
                 done
             );
@@ -350,7 +254,7 @@ describe ("#transform", function(){
 
     });
 
-    describe ("simple constraints", function(){
+    describe ("constraints", function(){
 
         describe ("type", function(){
 
@@ -373,9 +277,6 @@ describe ("#transform", function(){
                                 easy:       { }
                             },
                             { }, // target
-                            {    // error
-                                code:   'TYPE'
-                            },
                             next
                         );
                     },
@@ -396,9 +297,6 @@ describe ("#transform", function(){
                                 easy:       { }
                             },
                             { }, // target
-                            {    // error
-                                code:   'TYPE'
-                            },
                             next
                         );
                     },
@@ -419,9 +317,6 @@ describe ("#transform", function(){
                                 easy:       { }
                             },
                             { }, // target
-                            {    // error
-                                code:   'TYPE'
-                            },
                             next
                         );
                     },
@@ -442,9 +337,6 @@ describe ("#transform", function(){
                                 easy:       { }
                             },
                             { }, // target
-                            {    // error
-                                code:   'TYPE'
-                            },
                             next
                         );
                     },
@@ -465,18 +357,223 @@ describe ("#transform", function(){
                                 easy:       [ ]
                             },
                             { }, // target
-                            {    // error
-                                code:   'TYPE'
-                            },
                             next
                         );
                     }
                 ], done);
             });
 
-            it ("rejects updates of mismatched type using an array of types");
+            it ("accepts updates with an array of types", function (done) {
+                testTransform (
+                    {
+                        able:       { '.type':[ 'number', 'string' ] },
+                        baker:      { '.type':[ 'array', 'string' ] },
+                        charlie:    { '.type':[ 'number', 'array' ] },
+                        dog:        { '.type':[ 'string', 'object' ], '.arbitrary':true },
+                        easy:       { '.type':[ 'number', 'null' ] },
+                        fox:        { '.type':[ 'boolean', 'number' ] }
+                    },
+                    {
+                        able:       3,
+                        baker:      'three',
+                        charlie:    [ 'three' ],
+                        dog:        { three:3 },
+                        easy:       null,
+                        fox:        false
+                    },
+                    { },
+                    {
+                        able:       3,
+                        baker:      'three',
+                        charlie:    [ 'three' ],
+                        dog:        { three:3 },
+                        easy:       null,
+                        fox:        false
+                    },
+                    done
+                );
+            });
 
-            it ("performs a type-appropriate transform using an array .type constraint");
+            it ("rejects updates of mismatched type using an array of types", function (done) {
+                async.parallel ([
+                    function (callback) {
+                        testTransformFailure (
+                            {
+                                able:       { '.type':[ 'array', 'string' ] },
+                                baker:      { '.type':[ 'array', 'string' ] },
+                                charlie:    { '.type':[ 'number', 'array' ] },
+                                dog:        { '.type':[ 'string', 'object' ], '.arbitrary':true },
+                                easy:       { '.type':[ 'number', 'null' ] },
+                                fox:        { '.type':[ 'boolean', 'number' ] }
+                            },
+                            {
+                                able:       3,
+                                baker:      'three',
+                                charlie:    [ 'three' ],
+                                dog:        { three:3 },
+                                easy:       null,
+                                fox:        false
+                            },
+                            { },
+                            callback
+                        );
+                    },
+                    function (callback) {
+                        testTransformFailure (
+                            {
+                                able:       { '.type':[ 'number', 'string' ] },
+                                baker:      { '.type':[ 'array', 'number' ] },
+                                charlie:    { '.type':[ 'number', 'array' ] },
+                                dog:        { '.type':[ 'string', 'object' ], '.arbitrary':true },
+                                easy:       { '.type':[ 'number', 'null' ] },
+                                fox:        { '.type':[ 'boolean', 'number' ] }
+                            },
+                            {
+                                able:       3,
+                                baker:      'three',
+                                charlie:    [ 'three' ],
+                                dog:        { three:3 },
+                                easy:       null,
+                                fox:        false
+                            },
+                            { },
+                            callback
+                        );
+                    },
+                    function (callback) {
+                        testTransformFailure (
+                            {
+                                able:       { '.type':[ 'number', 'string' ] },
+                                baker:      { '.type':[ 'array', 'string' ] },
+                                charlie:    { '.type':[ 'number', 'object' ], '.arbitrary':true },
+                                dog:        { '.type':[ 'string', 'object' ], '.arbitrary':true },
+                                easy:       { '.type':[ 'number', 'null' ] },
+                                fox:        { '.type':[ 'boolean', 'number' ] }
+                            },
+                            {
+                                able:       3,
+                                baker:      'three',
+                                charlie:    [ 'three' ],
+                                dog:        { three:3 },
+                                easy:       null,
+                                fox:        false
+                            },
+                            { },
+                            callback
+                        );
+                    },
+                    function (callback) {
+                        testTransformFailure (
+                            {
+                                able:       { '.type':[ 'number', 'string' ] },
+                                baker:      { '.type':[ 'array', 'string' ] },
+                                charlie:    { '.type':[ 'number', 'array' ] },
+                                dog:        { '.type':[ 'string', 'array' ] },
+                                easy:       { '.type':[ 'number', 'null' ] },
+                                fox:        { '.type':[ 'boolean', 'number' ] }
+                            },
+                            {
+                                able:       3,
+                                baker:      'three',
+                                charlie:    [ 'three' ],
+                                dog:        { three:3 },
+                                easy:       null,
+                                fox:        false
+                            },
+                            { },
+                            callback
+                        );
+                    },
+                    function (callback) {
+                        testTransformFailure (
+                            {
+                                able:       { '.type':[ 'number', 'string' ] },
+                                baker:      { '.type':[ 'array', 'string' ] },
+                                charlie:    { '.type':[ 'number', 'array' ] },
+                                dog:        { '.type':[ 'string', 'object' ], '.arbitrary':true },
+                                easy:       { '.type':[ 'number', 'boolean' ] },
+                                fox:        { '.type':[ 'boolean', 'number' ] }
+                            },
+                            {
+                                able:       3,
+                                baker:      'three',
+                                charlie:    [ 'three' ],
+                                dog:        { three:3 },
+                                easy:       null,
+                                fox:        false
+                            },
+                            { },
+                            callback
+                        );
+                    },
+                    function (callback) {
+                        testTransformFailure (
+                            {
+                                able:       { '.type':[ 'number', 'string' ] },
+                                baker:      { '.type':[ 'array', 'string' ] },
+                                charlie:    { '.type':[ 'number', 'array' ] },
+                                dog:        { '.type':[ 'string', 'object' ], '.arbitrary':true },
+                                easy:       { '.type':[ 'null', 'boolean' ] },
+                                fox:        { '.type':[ 'number', 'null' ] }
+                            },
+                            {
+                                able:       3,
+                                baker:      'three',
+                                charlie:    [ 'three' ],
+                                dog:        { three:3 },
+                                easy:       null,
+                                fox:        false
+                            },
+                            { },
+                            callback
+                        );
+                    }
+                ], done);
+            });
+
+            it ("performs a type-appropriate transform using an array .type constraint", function (done) {
+                async.parallel ([
+                    function (callback) {
+                        testTransform (
+                            { '.type':[ 'string', 'array' ], '.append':true },
+                            'bar',
+                            'foo',
+                            'foobar',
+                            callback
+                        );
+                    },
+                    function (callback) {
+                        testTransform (
+                            { '.type':[ 'string', 'array' ], '.append':true },
+                            [ 'bar' ],
+                            [ 'foo' ],
+                            [ 'foo', 'bar' ],
+                            callback
+                        );
+                    }
+                ], done)
+            });
+
+            it ("rejects a transform when source and target types are mismatched", function (done) {
+                async.parallel ([
+                    function (callback) {
+                        testTransformFailure (
+                            { '.type':[ 'string', 'array' ], '.append':true },
+                            'bar',
+                            [ 'foo' ],
+                            callback
+                        );
+                    },
+                    function (callback) {
+                        testTransformFailure (
+                            { '.type':[ 'string', 'array' ], '.append':true },
+                            [ 'bar' ],
+                            'foo',
+                            callback
+                        );
+                    }
+                ], done)
+            });
 
         });
 
@@ -486,7 +583,7 @@ describe ("#transform", function(){
                 testTransformFailure (
                     {    // schema
                         able:       { '.eval':function (value) {
-                            if (able === 'foobar')
+                            if (value === 'foobar')
                                 throw new Error ('rejected!')
                         }}
                     },
@@ -494,9 +591,6 @@ describe ("#transform", function(){
                         able:       'foobar'
                     },
                     { }, // target
-                    {    // error
-                        code:   'INVALID'
-                    },
                     done
                 );
             });
@@ -509,7 +603,7 @@ describe ("#transform", function(){
                 testTransformFailure (
                     {    // schema
                         '.arbitrary':   true,
-                        '.max':         3
+                        '.maxKeys':     3
                     },
                     {    // source
                         charlie:    'chunky',
@@ -519,9 +613,6 @@ describe ("#transform", function(){
                         able:       42,
                         baker:      9001
                     },
-                    {    // error
-                        code:       'LIMIT'
-                    },
                     done
                 );
             });
@@ -530,7 +621,7 @@ describe ("#transform", function(){
                 testTransformFailure (
                     {    // schema
                         '.arbitrary':   true,
-                        '.min':         5
+                        '.minKeys':     5
                     },
                     {    // source
                         charlie:    'charlie'
@@ -538,9 +629,6 @@ describe ("#transform", function(){
                     {    // target
                         able:       'able',
                         baker:      'baker'
-                    },
-                    {    // error
-                        code:       'LIMIT'
                     },
                     done
                 );
@@ -550,7 +638,7 @@ describe ("#transform", function(){
                 testTransformFailure (
                     {    // schema
                         '.arbitrary':   true,
-                        '.length':      5
+                        '.keyCount':    5
                     },
                     {    // source
                         charlie:    'charlie'
@@ -558,9 +646,6 @@ describe ("#transform", function(){
                     {    // target
                         able:       'able',
                         baker:      'baker'
-                    },
-                    {    // error
-                        code:       'LIMIT'
                     },
                     done
                 );
@@ -582,9 +667,6 @@ describe ("#transform", function(){
                     {    // target
                         able:       'able',
                         charlie:    'baker'
-                    },
-                    {    // error
-                        code:       'MISSING'
                     },
                     done
                 );
@@ -615,75 +697,6 @@ describe ("#transform", function(){
                 );
             });
 
-            it ("transforms with .all and .arbitrary", function (done) {
-                testTransform (
-                    { '.arbitrary':true, '.all':{ '.add':true }},
-                    { able:10, baker:15, charlie:10 },
-                    { able:10, baker:20, charlie:30 },
-                    { able:20, baker:35, charlie:40 },
-                    done
-                );
-            });
-
-            it ("proceeds when an Object validates with .exists", function (done) {
-                testTransform (
-                    {
-                        '.arbitrary':   true,
-                        '.all':         { '.add':true },
-                        '.exists':      [
-                            { '.type':'number', '.gt':12, '.times':2 }
-                        ]
-                    },
-                    {
-                        able:       8,
-                        baker:      9,
-                        charlie:    10,
-                        dog:        11
-                    },
-                    {
-                        able:       5,
-                        baker:      5,
-                        charlie:    5,
-                        dog:        5
-                    },
-                    {
-                        able:       13,
-                        baker:      14,
-                        charlie:    15,
-                        dog:        16
-                    },
-                    done
-                );
-            });
-
-            it ("fails when an Object does not validate with .exists", function (done) {
-                testTransformFailure (
-                    {
-                        '.arbitrary':   true,
-                        '.all':         { '.add':true },
-                        '.exists':      [
-                            { '.type':'number', '.gt':15, '.times':2 }
-                        ]
-                    },
-                    {
-                        able:       8,
-                        baker:      9,
-                        charlie:    10,
-                        dog:        11
-                    },
-                    {
-                        able:       5,
-                        baker:      5,
-                        charlie:    5,
-                        dog:        5
-                    },
-                    {
-                        code:       'MISSING'
-                    },
-                    done
-                );
-            });
-
             describe (".unique", function(){
 
                 it ("transforms the document when .unique is satisfied", function (done) {
@@ -703,7 +716,6 @@ describe ("#transform", function(){
                                 { '.arbitrary':true, '.unique':true },
                                 { able:1, baker:'1', charlie:{ able:1 }, dog:{ able:'1' }, easy:{ able:'1' } },
                                 { },
-                                { code:'ILLEGAL' },
                                 callback
                             );
                         },
@@ -712,7 +724,6 @@ describe ("#transform", function(){
                                 { '.arbitrary':true, '.unique':true, '.all':{ '.type':'number' } },
                                 { able:1, baker:2, charlie:2 },
                                 { },
-                                { code:'ILLEGAL' },
                                 callback
                             );
                         },
@@ -724,7 +735,6 @@ describe ("#transform", function(){
                                 },
                                 { able:1, baker:2, charlie:2 },
                                 { },
-                                { code:'ILLEGAL' },
                                 callback
                             );
                         }
@@ -733,35 +743,35 @@ describe ("#transform", function(){
 
             });
 
-            it ("transforms with .all before named children", function (done) {
-                testTransform (
-                    {
-                        '.all':{ '.add':true },
-                        able:{ '.multiply':true },
-                        baker:{ '.multiply':true },
-                        charlie:{ '.multiply':true }
-                    },
-                    { able:10, baker:10, charlie:10 },
-                    { able:10, baker:20, charlie:30 },
-                    { able:200, baker:300, charlie:400 },
-                    done
-                );
-            });
+            // it ("transforms with .all before named children", function (done) {
+            //     testTransform (
+            //         {
+            //             '.all':{ '.add':true },
+            //             able:{ '.multiply':true },
+            //             baker:{ '.multiply':true },
+            //             charlie:{ '.multiply':true }
+            //         },
+            //         { able:10, baker:10, charlie:10 },
+            //         { able:10, baker:20, charlie:30 },
+            //         { able:200, baker:300, charlie:400 },
+            //         done
+            //     );
+            // });
 
-            it ("transforms with .all before matched children", function (done) {
-                testTransform (
-                    {
-                        '.all':{ '.add':true },
-                        '.matchChildren':{
-                            '^\\w+$':{ '.multiply':true }
-                        }
-                    },
-                    { able:10, baker:10, charlie:10 },
-                    { able:10, baker:20, charlie:30 },
-                    { able:200, baker:300, charlie:400 },
-                    done
-                );
-            });
+            // it ("transforms with .all before matched children", function (done) {
+            //     testTransform (
+            //         {
+            //             '.all':{ '.add':true },
+            //             '.matchChildren':{
+            //                 '^\\w+$':{ '.multiply':true }
+            //             }
+            //         },
+            //         { able:10, baker:10, charlie:10 },
+            //         { able:10, baker:20, charlie:30 },
+            //         { able:200, baker:300, charlie:400 },
+            //         done
+            //     );
+            // });
 
         });
 
@@ -770,16 +780,13 @@ describe ("#transform", function(){
             it ("fails when transform exceeds max length", function (done) {
                 testTransformFailure (
                     {    // schema
-                        able:       { '.type':'array', '.append':true, '.max':6 }
+                        able:       { '.type':'array', '.append':true, '.maxVals':6 }
                     },
                     {    // source
                         able:       [ 9, 9, 9 ]
                     },
                     {    // target
                         able:       [ 0, 1, 2, 3, 4 ]
-                    },
-                    {    // error
-                        code:       'LIMIT'
                     },
                     done
                 );
@@ -788,16 +795,13 @@ describe ("#transform", function(){
             it ("fails when transform does not reach min length", function (done) {
                 testTransformFailure (
                     {    // schema
-                        able:       { '.type':'array', '.append':true, '.min':9 }
+                        able:       { '.type':'array', '.append':true, '.minVals':9 }
                     },
                     {    // source
                         able:       [ 9, 9, 9 ]
                     },
                     {    // target
                         able:       [ 0, 1, 2, 3, 4 ]
-                    },
-                    {    // error
-                        code:       'LIMIT'
                     },
                     done
                 );
@@ -806,16 +810,13 @@ describe ("#transform", function(){
             it ("fails when transform violates exact length", function (done) {
                 testTransformFailure (
                     {    // schema
-                        able:       { '.type':'array', '.append':true, '.length':5 }
+                        able:       { '.type':'array', '.append':true, '.valCount':5 }
                     },
                     {    // source
                         able:       [ 9, 9, 9 ]
                     },
                     {    // target
                         able:       [ 0, 1, 2, 3, 4 ]
-                    },
-                    {    // error
-                        code:       'LIMIT'
                     },
                     done
                 );
@@ -846,9 +847,6 @@ describe ("#transform", function(){
                     ] },
                     [ 10, 10, "10", 10 ],
                     [ 100, 100, 100, 100 ],
-                    {
-                        code:   'TYPE'
-                    },
                     done
                 );
             });
@@ -880,7 +878,6 @@ describe ("#transform", function(){
                     },
                     [ 12, 13, 14 ],
                     [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 ],
-                    { code:'MISSING' },
                     done
                 );
             });
@@ -895,31 +892,6 @@ describe ("#transform", function(){
                 );
             });
 
-            it ("transforms every element with .all", function (done) {
-                testTransform (
-                    { '.type':'array', '.all':{ '.add':true } },
-                    [ 10, 10, 10, 10 ],
-                    [ 1, 2, 3, 4 ],
-                    [ 11, 12, 13, 14 ],
-                    done
-                );
-            });
-
-            it ("transforms with .all before .sequence", function (done) {
-                testTransform (
-                    { able:{ '.type':'array', '.all':{ '.add':true }, '.sequence':[
-                        { '.multiply':true },
-                        { '.multiply':true },
-                        { '.multiply':true },
-                        { '.multiply':true }
-                    ] } },
-                    { able:[ 10, 10, 10, 10 ] },
-                    { able:[ 10, 20, 30, 40 ] },
-                    { able:[ 200, 300, 400, 500 ] },
-                    done
-                );
-            });
-
         });
 
         describe ("Strings", function(){
@@ -927,16 +899,13 @@ describe ("#transform", function(){
             it ("fails when transform exceeds max length", function (done) {
                 testTransformFailure (
                     {    // schema
-                        able:   { '.type':'string', '.max':32 }
+                        able:   { '.type':'string', '.maxLength':32 }
                     },
                     {    // source
                         able:   'This is my String. There are many like it, but this one is mine.'
                     },
                     {    // target
                         able:   'Hello, World!'
-                    },
-                    {    // error
-                        code:   'INVALID'
                     },
                     done
                 );
@@ -945,16 +914,13 @@ describe ("#transform", function(){
             it ("fails when transform does not reach min length", function (done) {
                 testTransformFailure (
                     {    // schema
-                        able:   { '.type':'string', '.min':32 }
+                        able:   { '.type':'string', '.minLength':32 }
                     },
                     {    // source
                         able:   'Hello, World!'
                     },
                     {    // target
                         able:   'This is my String. There are many like it, but this one is mine.'
-                    },
-                    {    // error
-                        code:   'INVALID'
                     },
                     done
                 );
@@ -970,9 +936,6 @@ describe ("#transform", function(){
                     },
                     {    // target
                         able:   'Hello, World!'
-                    },
-                    {    // error
-                        code:   'INVALID'
                     },
                     done
                 );
@@ -993,9 +956,6 @@ describe ("#transform", function(){
                     {    // target
                         able:   95
                     },
-                    {    // error
-                        code:   'INVALID'
-                    },
                     done
                 );
             });
@@ -1010,9 +970,6 @@ describe ("#transform", function(){
                     },
                     {    // target
                         able:   105
-                    },
-                    {    // error
-                        code:   'INVALID'
                     },
                     done
                 );
@@ -1029,9 +986,6 @@ describe ("#transform", function(){
                     {    // target
                         able:   100
                     },
-                    {    // error
-                        code:   'INVALID'
-                    },
                     done
                 );
             });
@@ -1047,112 +1001,11 @@ describe ("#transform", function(){
                     {    // target
                         able:   100
                     },
-                    {    // error
-                        code:   'INVALID'
-                    },
                     done
                 );
             });
 
         });
-
-    });
-
-    describe ("predicate constraints", function(){
-
-        it ("rejects an Object transform that fails an .all constraint", function (done) {
-            async.parallel ([
-                function (next) {
-                    testTransformFailure (
-                        {    // schema
-                            '.arbitrary':   true,
-                            '.all':         {
-                                '.type':        'number'
-                            }
-                        },
-                        {    // source
-                            able:       1,
-                            baker:      'two'
-                        },
-                        {    // target
-                            able:       9,
-                            baker:      8,
-                            charlie:    7
-                        },
-                        {    // error
-                            code:   'INVALID'
-                        },
-                        next
-                    );
-                },
-                function (next) {
-                    testTransformFailure (
-                        {    // schema
-                            '.arbitrary':   true,
-                            '.all':         {
-                                '.type':        'number',
-                                '.gte':         3
-                            }
-                        },
-                        {    // source
-                            able:       6,
-                            baker:      2
-                        },
-                        {    // target
-                            able:       9,
-                            baker:      8,
-                            charlie:    7
-                        },
-                        {    // error
-                            code:   'INVALID'
-                        },
-                        next
-                    );
-                }
-            ], done);
-        });
-
-        it ("rejects an Array transform that fails an .all constraint", function (done) {
-            async.parallel ([
-                function (next) {
-                    testTransformFailure (
-                        {    // schema
-                            '.type':        'array',
-                            '.all':         {
-                                '.type':        'number'
-                            }
-                        },
-                        [ 1, 'two' ],
-                        [ 9, 8, 7 ],
-                        {    // error
-                            code:   'INVALID'
-                        },
-                        next
-                    );
-                },
-                function (next) {
-                    testTransformFailure (
-                        {    // schema
-                            '.type':        'array',
-                            '.all':         {
-                                '.type':        'number',
-                                '.gte':         3
-                            }
-                        },
-                        [ 6, 2 ],
-                        [ 9, 8, 7 ],
-                        {    // error
-                            code:   'INVALID'
-                        },
-                        next
-                    );
-                }
-            ], done);
-        });
-
-        it ("accepts an Array that validates .exists constraints");
-
-        it ("rejects an Array that fails .exists constraints");
 
     });
 
@@ -1178,19 +1031,52 @@ describe ("#transform", function(){
                 );
             });
 
-            it ("wraps an Error thrown by the function transform", function (done) {
-                testTransformFailure (
+            it ("combines .transform with other transforms", function (done) {
+                testTransform (
                     {    // schema
-                        able:   { '.type':'string', '.transform':function (value) {
-                            throw new Error ('nope!');
+                        able:   { '.type':'number', '.add':true, '.transform':function (value) {
+                            return 10 * value;
                         }}
                     },
                     {    // source
-                        able:   'div'
+                        able:   5
+                    },
+                    { able:50 }, // target
+                    {    // goal
+                        able:   100
+                    },
+                    done
+                );
+            });
+
+            it ("constrains .transform output by type", function (done) {
+                testTransformFailure (
+                    {    // schema
+                        able:   { '.type':'string', '.transform':function (value) {
+                            return 50
+                        }}
+                    },
+                    {    // source
+                        able:   'foo'
                     },
                     { }, // target
-                    {    // error
-                        code:   'INVALID'
+                    done
+                );
+            });
+
+            it ("does not constrain .transform input by type", function (done) {
+                testTransform (
+                    {    // schema
+                        able:   { '.type':'string', '.transform':function (value) {
+                            return JSON.stringify (value);
+                        }}
+                    },
+                    {    // source
+                        able:   [ 'able', 'baker', 'charlie' ]
+                    },
+                    { }, // target
+                    {    // goal
+                        able:   '["able","baker","charlie"]'
                     },
                     done
                 );
@@ -1227,9 +1113,6 @@ describe ("#transform", function(){
                             able:   '9001.781a'
                         },
                         { }, // target
-                        {    // error
-                            code:   'FORMAT'
-                        },
                         done
                     );
                 });
@@ -1421,6 +1304,46 @@ describe ("#transform", function(){
                     );
                 });
 
+                it ("averages target with input", function (done) {
+                    testTransform (
+                        {    // schema
+                            able:   { '.type':'number', '.average':true },
+                            baker:  { '.type':'number', '.average':true }
+                        },
+                        {    // source
+                            able:   10,
+                            baker:  100
+                        },
+                        {    // target
+                            able:   0,
+                            baker:  50
+                        },
+                        {    // goal
+                            able:   5,
+                            baker:  75
+                        },
+                        done
+                    );
+                });
+
+                it ("averages missing target with input", function (done) {
+                    testTransform (
+                        {    // schema
+                            able:   { '.type':'number', '.average':true }
+                        },
+                        {    // source
+                            able:   3
+                        },
+                        {    // target
+
+                        },
+                        {    // goal
+                            able:   3
+                        },
+                        done
+                    );
+                });
+
             });
 
             it ("filters by modulo", function (done) {
@@ -1529,13 +1452,13 @@ describe ("#transform", function(){
                         function (next) {
                             testTransformFailure (
                                 {    // schema
-                                    able:       { '.type':'number', '.max':10, '.total':true },
-                                    baker:      { '.type':'number', '.min':2, '.subtract':true },
-                                    charlie:    { '.type':'number', '.max':100, '.multiply':true },
-                                    dog:        { '.type':'number', '.min':0, '.divide':true },
-                                    easy:       { '.type':'number', '.max':7, '.modulate':7 },
-                                    fox:        { '.type':'number', '.max':0, '.inverse':true },
-                                    george:     { '.type':'number', '.max':1/5, '.reciprocal':true }
+                                    able:       { '.type':'number', '.lte':10, '.total':true },
+                                    baker:      { '.type':'number', '.gte':2, '.subtract':true },
+                                    charlie:    { '.type':'number', '.lte':100, '.multiply':true },
+                                    dog:        { '.type':'number', '.gte':0, '.divide':true },
+                                    easy:       { '.type':'number', '.lte':7, '.modulate':7 },
+                                    fox:        { '.type':'number', '.lte':0, '.inverse':true },
+                                    george:     { '.type':'number', '.lte':1/5, '.reciprocal':true }
                                 },
                                 {    // source
                                     able:       5,
@@ -1554,10 +1477,6 @@ describe ("#transform", function(){
                                     easy:       7,
                                     fox:        6,
                                     george:     5
-                                },
-                                {    // error
-                                    path:       'able',
-                                    code:       'INVALID'
                                 },
                                 next
                             );
@@ -1565,13 +1484,13 @@ describe ("#transform", function(){
                         function (next) {
                             testTransformFailure (
                                 {    // schema
-                                    able:       { '.type':'number', '.max':100, '.total':true },
-                                    baker:      { '.type':'number', '.min':10, '.subtract':true },
-                                    charlie:    { '.type':'number', '.max':100, '.multiply':true },
-                                    dog:        { '.type':'number', '.min':0, '.divide':true },
-                                    easy:       { '.type':'number', '.max':7, '.modulate':7 },
-                                    fox:        { '.type':'number', '.max':0, '.inverse':true },
-                                    george:     { '.type':'number', '.max':1/5, '.reciprocal':true }
+                                    able:       { '.type':'number', '.lte':100, '.total':true },
+                                    baker:      { '.type':'number', '.gte':10, '.subtract':true },
+                                    charlie:    { '.type':'number', '.lte':100, '.multiply':true },
+                                    dog:        { '.type':'number', '.gte':0, '.divide':true },
+                                    easy:       { '.type':'number', '.lte':7, '.modulate':7 },
+                                    fox:        { '.type':'number', '.lte':0, '.inverse':true },
+                                    george:     { '.type':'number', '.lte':1/5, '.reciprocal':true }
                                 },
                                 {    // source
                                     able:       5,
@@ -1590,10 +1509,6 @@ describe ("#transform", function(){
                                     easy:       7,
                                     fox:        6,
                                     george:     5
-                                },
-                                {    // error
-                                    path:       'baker',
-                                    code:       'INVALID'
                                 },
                                 next
                             );
@@ -1601,13 +1516,13 @@ describe ("#transform", function(){
                         function (next) {
                             testTransformFailure (
                                 {    // schema
-                                    able:       { '.type':'number', '.max':100, '.total':true },
-                                    baker:      { '.type':'number', '.min':3, '.subtract':true },
-                                    charlie:    { '.type':'number', '.max':8, '.multiply':true },
-                                    dog:        { '.type':'number', '.min':0, '.divide':true },
-                                    easy:       { '.type':'number', '.max':7, '.modulate':7 },
-                                    fox:        { '.type':'number', '.max':0, '.inverse':true },
-                                    george:     { '.type':'number', '.max':1/5, '.reciprocal':true }
+                                    able:       { '.type':'number', '.lte':100, '.total':true },
+                                    baker:      { '.type':'number', '.gte':3, '.subtract':true },
+                                    charlie:    { '.type':'number', '.lte':8, '.multiply':true },
+                                    dog:        { '.type':'number', '.gte':0, '.divide':true },
+                                    easy:       { '.type':'number', '.lte':7, '.modulate':7 },
+                                    fox:        { '.type':'number', '.lte':0, '.inverse':true },
+                                    george:     { '.type':'number', '.lte':1/5, '.reciprocal':true }
                                 },
                                 {    // source
                                     able:       5,
@@ -1626,10 +1541,6 @@ describe ("#transform", function(){
                                     easy:       7,
                                     fox:        6,
                                     george:     5
-                                },
-                                {    // goal
-                                    path:       'charlie',
-                                    code:       'INVALID'
                                 },
                                 next
                             );
@@ -1637,13 +1548,13 @@ describe ("#transform", function(){
                         function (next) {
                             testTransformFailure (
                                 {    // schema
-                                    able:       { '.type':'number', '.max':100, '.total':true },
-                                    baker:      { '.type':'number', '.min':3, '.subtract':true },
-                                    charlie:    { '.type':'number', '.max':100, '.multiply':true },
-                                    dog:        { '.type':'number', '.min':10, '.divide':true },
-                                    easy:       { '.type':'number', '.max':7, '.modulate':7 },
-                                    fox:        { '.type':'number', '.max':0, '.inverse':true },
-                                    george:     { '.type':'number', '.max':1/5, '.reciprocal':true }
+                                    able:       { '.type':'number', '.lte':100, '.total':true },
+                                    baker:      { '.type':'number', '.gte':3, '.subtract':true },
+                                    charlie:    { '.type':'number', '.lte':100, '.multiply':true },
+                                    dog:        { '.type':'number', '.gte':10, '.divide':true },
+                                    easy:       { '.type':'number', '.lte':7, '.modulate':7 },
+                                    fox:        { '.type':'number', '.lte':0, '.inverse':true },
+                                    george:     { '.type':'number', '.lte':1/5, '.reciprocal':true }
                                 },
                                 {    // source
                                     able:       5,
@@ -1662,10 +1573,6 @@ describe ("#transform", function(){
                                     easy:       7,
                                     fox:        6,
                                     george:     5
-                                },
-                                {    // goal
-                                    path:       'dog',
-                                    code:       'INVALID'
                                 },
                                 next
                             );
@@ -1673,13 +1580,13 @@ describe ("#transform", function(){
                         function (next) {
                             testTransformFailure (
                                 {    // schema
-                                    able:       { '.type':'number', '.max':100, '.total':true },
-                                    baker:      { '.type':'number', '.min':3, '.subtract':true },
-                                    charlie:    { '.type':'number', '.max':100, '.multiply':true },
-                                    dog:        { '.type':'number', '.min':0, '.divide':true },
-                                    easy:       { '.type':'number', '.max':6, '.modulo':7 },
-                                    fox:        { '.type':'number', '.max':0, '.inverse':true },
-                                    george:     { '.type':'number', '.max':1/5, '.reciprocal':true }
+                                    able:       { '.type':'number', '.lte':100, '.total':true },
+                                    baker:      { '.type':'number', '.gte':3, '.subtract':true },
+                                    charlie:    { '.type':'number', '.lte':100, '.multiply':true },
+                                    dog:        { '.type':'number', '.gte':0, '.divide':true },
+                                    easy:       { '.type':'number', '.lte':6, '.modulo':7 },
+                                    fox:        { '.type':'number', '.lte':0, '.inverse':true },
+                                    george:     { '.type':'number', '.lte':1/5, '.reciprocal':true }
                                 },
                                 {    // source
                                     able:       5,
@@ -1698,10 +1605,6 @@ describe ("#transform", function(){
                                     easy:       7,
                                     fox:        6,
                                     george:     5
-                                },
-                                {    // goal
-                                    path:       'easy',
-                                    code:       'INVALID'
                                 },
                                 next
                             );
@@ -1709,13 +1612,13 @@ describe ("#transform", function(){
                         function (next) {
                             testTransformFailure (
                                 {    // schema
-                                    able:       { '.type':'number', '.max':100, '.total':true },
-                                    baker:      { '.type':'number', '.min':3, '.subtract':true },
-                                    charlie:    { '.type':'number', '.max':100, '.multiply':true },
-                                    dog:        { '.type':'number', '.min':0, '.divide':true },
-                                    easy:       { '.type':'number', '.max':7, '.modulate':7 },
-                                    fox:        { '.type':'number', '.min':0, '.inverse':true },
-                                    george:     { '.type':'number', '.max':1/5, '.reciprocal':true }
+                                    able:       { '.type':'number', '.lte':100, '.total':true },
+                                    baker:      { '.type':'number', '.gte':3, '.subtract':true },
+                                    charlie:    { '.type':'number', '.lte':100, '.multiply':true },
+                                    dog:        { '.type':'number', '.gte':0, '.divide':true },
+                                    easy:       { '.type':'number', '.lte':7, '.modulate':7 },
+                                    fox:        { '.type':'number', '.gte':0, '.inverse':true },
+                                    george:     { '.type':'number', '.lte':1/5, '.reciprocal':true }
                                 },
                                 {    // source
                                     able:       5,
@@ -1734,10 +1637,6 @@ describe ("#transform", function(){
                                     easy:       7,
                                     fox:        6,
                                     george:     5
-                                },
-                                {    // goal
-                                    path:       'fox',
-                                    code:       'INVALID'
                                 },
                                 next
                             );
@@ -1745,13 +1644,13 @@ describe ("#transform", function(){
                         function (next) {
                             testTransformFailure (
                                 {    // schema
-                                    able:       { '.type':'number', '.max':100, '.total':true },
-                                    baker:      { '.type':'number', '.min':3, '.subtract':true },
-                                    charlie:    { '.type':'number', '.max':100, '.multiply':true },
-                                    dog:        { '.type':'number', '.min':0, '.divide':true },
-                                    easy:       { '.type':'number', '.max':7, '.modulate':7 },
-                                    fox:        { '.type':'number', '.max':0, '.inverse':true },
-                                    george:     { '.type':'number', '.max':0, '.reciprocal':true }
+                                    able:       { '.type':'number', '.lte':100, '.total':true },
+                                    baker:      { '.type':'number', '.gte':3, '.subtract':true },
+                                    charlie:    { '.type':'number', '.lte':100, '.multiply':true },
+                                    dog:        { '.type':'number', '.gte':0, '.divide':true },
+                                    easy:       { '.type':'number', '.lte':7, '.modulate':7 },
+                                    fox:        { '.type':'number', '.lte':0, '.inverse':true },
+                                    george:     { '.type':'number', '.lte':0, '.reciprocal':true }
                                 },
                                 {    // source
                                     able:       5,
@@ -1770,10 +1669,6 @@ describe ("#transform", function(){
                                     easy:       7,
                                     fox:        6,
                                     george:     5
-                                },
-                                {    // goal
-                                    path:       'george',
-                                    code:       'INVALID'
                                 },
                                 next
                             );
@@ -2069,7 +1964,7 @@ describe ("#transform", function(){
                                 '.type':        'string',
                                 '.inject':      [ [ 1, 'foo' ]],
                                 '.prepend':     true,
-                                '.max':         20
+                                '.maxLength':   20
                             }
                         },
                         {    // source
@@ -2092,7 +1987,7 @@ describe ("#transform", function(){
                                 '.type':        'string',
                                 '.inject':      [ [ 1, 'foo' ]],
                                 '.prepend':     true,
-                                '.max':         15
+                                '.maxLength':   15
                             }
                         },
                         {    // source
@@ -2100,9 +1995,6 @@ describe ("#transform", function(){
                         },
                         {    // target
                             able:   ' factory'
-                        },
-                        {    // error
-                            code:   'INVALID'
                         },
                         done
                     );
@@ -2150,9 +2042,6 @@ describe ("#transform", function(){
                         },
                         {    // target
                             able:   ' factory'
-                        },
-                        {    // error
-                            code:   'INVALID'
                         },
                         done
                     );
@@ -2225,9 +2114,6 @@ describe ("#transform", function(){
                             able:   'truth'
                         },
                         { }, // target
-                        {    // error
-                            code:   'FORMAT'
-                        },
                         done
                     );
                 });
@@ -2250,32 +2136,6 @@ describe ("#transform", function(){
         });
 
         describe ("Objects", function(){
-
-            it ("fails by processing .all constraint before named child", function (done) {
-                testTransformFailure (
-                    {    // schema
-                        '.arbitrary':   true,
-                        '.all':         {
-                            '.type':        'string',
-                            '.min':         16
-                        },
-                        able:           {
-                            '.type':        'string',
-                            '.append':      true
-                        }
-                    },
-                    {    // source
-                        able:       'fromage bleu'
-                    },
-                    {    // target
-                        able:       'le chez '
-                    },
-                    {
-                        code:       'INVALID'
-                    },
-                    done
-                );
-            });
 
             describe (".cast", function(){
 
@@ -2313,9 +2173,6 @@ describe ("#transform", function(){
                                     able:   '{ "able":"foo", "baker":{ able:9001 }}'
                                 },
                                 { }, // target
-                                {    // error
-                                    code:   'FORMAT'
-                                },
                                 next
                             );
                         },
@@ -2328,9 +2185,6 @@ describe ("#transform", function(){
                                     able:   '[ 0, 1, 2, { able:"foo" } ]'
                                 },
                                 { }, // target
-                                {    // error
-                                    code:   'FORMAT'
-                                },
                                 next
                             );
                         }
@@ -2366,95 +2220,6 @@ describe ("#transform", function(){
                 });
 
             });
-
-            // describe (".insert", function(){
-
-            //     it ("inserts input Object's keys into a child key", function (done) {
-            //         testTransform (
-            //             {    // schema
-            //                 '.type':        'object',
-            //                 '.arbitrary':   true,
-            //                 '.insert':      'able'
-            //             },
-            //             {    // source
-            //                 able:   9001,
-            //                 baker:  'nine thousand and one'
-            //             },
-            //             { }, // target
-            //             {    // goal
-            //                 able:   {
-            //                     able:   9001,
-            //                     baker:  'nine thousand and one'
-            //                 }
-            //             },
-            //             done
-            //         );
-            //     });
-
-            //     it ("processes the input Object as the inserted child key", function (done) {
-            //         testTransform (
-            //             {    // schema
-            //                 '.insert':      'userInput',
-            //                 userInput:      {
-            //                     able:           {
-            //                         '.type':        'number',
-            //                         '.gte':         0,
-            //                         '.lte':         10,
-            //                         '.normalize':   10
-            //                     },
-            //                     baker:          /^\w+$/
-            //                 }
-            //             },
-            //             {    // source
-            //                 able:       9,
-            //                 baker:      'hello'
-            //             },
-            //             { }, // target
-            //             {    // goal
-            //                 userInput:  {
-            //                     able:       0.9,
-            //                     baker:      'hello'
-            //                 }
-            //             },
-            //             done
-            //         );
-            //     });
-
-            //     it ("injects before insertion", function (done) {
-            //         testTransform (
-            //             {    // schema
-            //                 '.insert':      'userInput',
-            //                 '.inject':      [
-            //                     [ 'cheese', 'parmesan' ]
-            //                 ],
-            //                 userInput:      {
-            //                     able:           {
-            //                         '.type':        'number',
-            //                         '.gte':         0,
-            //                         '.lte':         10,
-            //                         '.normalize':   10
-            //                     },
-            //                     baker:          /^\w+$/,
-            //                     cheese:         { '.type':'string' }
-            //                 }
-            //             },
-            //             {    // source
-            //                 able:       9,
-            //                 baker:      'hello'
-            //             },
-            //             { }, // target
-            //             {    // goal
-            //                 userInput:  {
-            //                     able:       0.9,
-            //                     baker:      'hello',
-            //                     cheese:     'parmesan'
-            //                 }
-            //             },
-            //             done
-            //         );
-            //     });
-
-            // });
 
             describe (".rename", function(){
 
@@ -2628,7 +2393,7 @@ describe ("#transform", function(){
                         {    // schema
                             '.type':        'object',
                             '.arbitrary':   true,
-                            '.max':         4,
+                            '.maxKeys':     4,
                             '.inject':      [
                                 [ 'easy', 42 ],
                                 [ 'fox', 7 ]
@@ -2641,9 +2406,6 @@ describe ("#transform", function(){
                             able:       9001,
                             baker:      'nine thousand and one',
                             charlie:    42
-                        },
-                        {    // error
-                            code:       'LIMIT'
                         },
                         done
                     );
@@ -2684,9 +2446,6 @@ describe ("#transform", function(){
                                     able:   '[ 0, 1, 2, { able:"foo" } ]'
                                 },
                                 { }, // target
-                                {    // error
-                                    code:   'FORMAT'
-                                },
                                 callback
                             );
                         },
@@ -2699,13 +2458,106 @@ describe ("#transform", function(){
                                     able:   '{ "able":"foo", "baker":{ "able:9001" }}'
                                 },
                                 { }, // target
-                                {    // error
-                                    code:   'FORMAT'
-                                },
                                 callback
                             );
                         }
                     ], done);
+                });
+
+            });
+
+            describe (".sort", function(){
+
+                it ("appends to the correct position when using a simple .sort", function (done) {
+                    testTransform (
+                        { '.sort':1, '.append':true },
+                        [ 4, 7, 8, 20, 2 ],
+                        [ 9, 11, 6 ],
+                        [ 2, 4, 6, 7, 8, 9, 11, 20 ],
+                        done
+                    );
+                });
+
+                it ("prepends to the correct position when using a simple .sort", function (done) {
+                    testTransform (
+                        { '.sort':1, '.prepend':true },
+                        [ 4, 7, 8, 20, 2 ],
+                        [ 9, 11, 6 ],
+                        [ 2, 4, 6, 7, 8, 9, 11, 20 ],
+                        done
+                    );
+                });
+
+                it ("inserts to the correct position when using a simple .sort", function (done) {
+                    testTransform (
+                        { '.sort':1, '.insert':3 },
+                        [ 4, 7, 8, 20, 2 ],
+                        [ 9, 11, 6 ],
+                        [ 2, 4, 6, 7, 8, 9, 11, 20 ],
+                        done
+                    );
+                });
+
+                it ("appends to the correct position when using a complex .sort", function (done) {
+                    testTransform (
+                        { '.sort':{ able:1 }, '.append':true },
+                        [ { able:4 }, { able:7 }, { able:8 }, { able:20 }, { able:2 } ],
+                        [ { able:9 }, { able:11 }, { able:6 } ],
+                        [
+                            { able:2 }, { able:4 }, { able:6  }, { able:7  },
+                            { able:8 }, { able:9 }, { able:11 }, { able:20 }
+                        ],
+                        done
+                    );
+                });
+
+                it ("prepends to the correct position when using a complex .sort", function (done) {
+                    testTransform (
+                        { '.sort':{ able:1 }, '.prepend':true },
+                        [ { able:4 }, { able:7 }, { able:8 }, { able:20 }, { able:2 } ],
+                        [ { able:9 }, { able:11 }, { able:6 } ],
+                        [
+                            { able:2 }, { able:4 }, { able:6  }, { able:7  },
+                            { able:8 }, { able:9 }, { able:11 }, { able:20 }
+                        ],
+                        done
+                    );
+                });
+
+                it ("inserts to the correct position when using a complex .sort", function (done) {
+                    testTransform (
+                        { '.sort':{ able:1 }, '.insert':3 },
+                        [ { able:4 }, { able:7 }, { able:8 }, { able:20 }, { able:2 } ],
+                        [ { able:9 }, { able:11 }, { able:6 } ],
+                        [
+                            { able:2 }, { able:4 }, { able:6  }, { able:7  },
+                            { able:8 }, { able:9 }, { able:11 }, { able:20 }
+                        ],
+                        done
+                    );
+                });
+
+                it ("pre-sorts the input value when using simple .sort and .sequence", function (done) {
+                    testTransform (
+                        { '.sort':1, '.sequence':[ { '.add':true }, { '.multiply':true } ] },
+                        [ 20, 10 ],
+                        [ 10, 20 ],
+                        [ 20, 400 ],
+                        done
+                    );
+                });
+
+                it ("pre-sorts the input value when using complex .sort and .sequence", function (done) {
+                    testTransform (
+                        { '.sort':1, '.sequence':[
+                            { able:{ '.add':true } },
+                            { able:{ '.multiply':true } }
+                        ] },
+                        [ { able:20 }, { able:10 } ],
+                        [ { able:10 }, { able:20 } ],
+                        [ { able:20 }, { able:400 } ],
+                        done
+                    );
                 });
 
             });
@@ -2866,11 +2718,15 @@ describe ("#transform", function(){
                     );
                 });
 
-                it ("inserts to the correct position when using a simple .sort");
-
-                it ("inserts to the correct position when using a complex .sort");
-
-                it ("inserts only novel values with .unique");
+                it ("inserts only novel values with .unique", function (done) {
+                    testTransform (
+                        { '.insert':3, '.unique':true },
+                        [ 1, 2, 3, 4, 5, 6 ],
+                        [ 1, 3, 5, 7 ],
+                        [ 1, 3, 5, 2, 4, 6, 7 ],
+                        done
+                    );
+                });
 
             });
 
@@ -2918,11 +2774,15 @@ describe ("#transform", function(){
                     );
                 });
 
-                it ("inserts to the correct position when using a simple .sort");
-
-                it ("inserts to the correct position when using a complex .sort");
-
-                it ("inserts only novel values with .unique");
+                it ("appends only novel values with .unique", function (done) {
+                    testTransform (
+                        { '.append':true, '.unique':true },
+                        [ 1, 2, 3, 4, 5, 6 ],
+                        [ 1, 3, 5, 7 ],
+                        [ 1, 3, 5, 7, 2, 4, 6 ],
+                        done
+                    );
+                });
 
             });
 
@@ -2970,11 +2830,15 @@ describe ("#transform", function(){
                     );
                 });
 
-                it ("inserts to the correct position when using a simple .sort");
-
-                it ("inserts to the correct position when using a complex .sort");
-
-                it ("inserts only novel values with .unique");
+                it ("prepends only novel values with .unique", function (done) {
+                    testTransform (
+                        { '.prepend':true, '.unique':true },
+                        [ 1, 2, 3, 4, 5, 6 ],
+                        [ 1, 3, 5, 7 ],
+                        [ 2, 4, 6, 1, 3, 5, 7 ],
+                        done
+                    );
+                });
 
             });
 
@@ -3071,7 +2935,7 @@ describe ("#transform", function(){
                                 {    // schema
                                     '.type':    'array',
                                     '.append':  true,
-                                    '.max':     15
+                                    '.maxVals': 15
                                 },
                                 [    // source
                                     0, 1, 2, 3, 4, 5, 6, 7, 8, 9
@@ -3079,9 +2943,6 @@ describe ("#transform", function(){
                                 [    // target
                                     0, 1, 2, 3, 4, 5, 6, 7, 8, 9
                                 ],
-                                {    // error
-                                    code:       'LIMIT'
-                                },
                                 next
                             );
                         },
@@ -3090,7 +2951,7 @@ describe ("#transform", function(){
                                 {    // schema
                                     '.type':    'array',
                                     '.prepend': true,
-                                    '.max':     15
+                                    '.maxVals': 15
                                 },
                                 [    // source
                                     0, 1, 2, 3, 4, 5, 6, 7, 8, 9
@@ -3098,9 +2959,6 @@ describe ("#transform", function(){
                                 [    // target
                                     0, 1, 2, 3, 4, 5, 6, 7, 8, 9
                                 ],
-                                {    // error
-                                    code:       'LIMIT'
-                                },
                                 next
                             );
                         },
@@ -3109,7 +2967,7 @@ describe ("#transform", function(){
                                 {    // schema
                                     '.type':    'array',
                                     '.insert':  5,
-                                    '.max':     15
+                                    '.maxVals': 15
                                 },
                                 [    // source
                                     0, 1, 2, 3, 4, 5, 6, 7, 8, 9
@@ -3117,9 +2975,6 @@ describe ("#transform", function(){
                                 [    // target
                                     0, 1, 2, 3, 4, 5, 6, 7, 8, 9
                                 ],
-                                {    // error
-                                    code:       'LIMIT'
-                                },
                                 next
                             );
                         },
@@ -3132,15 +2987,12 @@ describe ("#transform", function(){
                                         [ 3, 9 ],
                                         [ 5, 9 ]
                                     ],
-                                    '.max':     11
+                                    '.maxVals': 11
                                 },
                                 [    // source
                                     0, 1, 2, 3, 4, 5, 6, 7, 8, 9
                                 ],
                                 [ ], // target
-                                {    // error
-                                    code:       'LIMIT'
-                                },
                                 next
                             );
                         }
@@ -3153,27 +3005,541 @@ describe ("#transform", function(){
 
     });
 
-    describe ("anyOf", function(){
+    describe ("polyschemata", function(){
 
-        it ("transforms with one of several schema");
+        it ("always fails to transform with mismatched source and target types", function (done) {
+            async.parallel ([
+                function (callback) {
+                    testTransformFailure (
+                        { ".or":[
+                            { '.type':'string', '.match':/^\w+$/, '.append':true },
+                            { '.type':'array', '.all':{ '.type':'string', '.match':/^\w+$/ }, '.prepend':true }
+                        ] },
+                        [ 'foo' ],
+                        'bar',
+                        callback
+                    );
+                },
+                function (callback) {
+                    testTransformFailure (
+                        { ".xor":[
+                            { '.type':'string', '.match':/^\w+$/, '.append':true },
+                            { '.type':'array', '.all':{ '.type':'string', '.match':/^\w+$/ }, '.prepend':true }
+                        ] },
+                        [ 'foo' ],
+                        'bar',
+                        callback
+                    );
+                }
+            ], done);
+        });
 
-        it ("fails to match any of several schema");
+        describe ("anyOf", function(){
+
+            it ("transforms with one of several schemata", function (done) {
+                async.parallel ([
+                    function (callback) {
+                        testTransform (
+                            { ".or":[
+                                { '.type':'string', '.match':/^\w+$/, '.append':true },
+                                { '.type':'array', '.all':{ '.type':'string', '.match':/^\w+$/ }, '.prepend':true },
+                                { '.type':'string', '.match':/^\w+$/, '.prepend':true },
+                                { '.type':'array', '.all':{ '.type':'string', '.match':/^\w+$/ }, '.prepend':true }
+                            ] },
+                            [ 'foo', 'bar' ],
+                            [ 'baz' ],
+                            [ 'foo', 'bar', 'baz' ],
+                            callback
+                        );
+                    },
+                    function (callback) {
+                        testTransform (
+                            { ".or":[
+                                { '.type':'string', '.match':/^\w+$/, '.append':true },
+                                { '.type':'array', '.all':{ '.type':'string', '.match':/^\w+$/ }, '.prepend':true },
+                                { '.type':'string', '.match':/^\w+$/, '.prepend':true },
+                                { '.type':'array', '.all':{ '.type':'string', '.match':/^\w+$/ }, '.prepend':true }
+                            ] },
+                            'baz',
+                            'foobar',
+                            'foobarbaz',
+                            callback
+                        );
+                    }
+                ], done);
+            });
+
+            it ("fails to match any of several schemata", function (done) {
+                testTransformFailure (
+                    { ".or":[
+                        { '.type':'string', '.match':/^\w+$/, '.append':true },
+                        { '.type':'array', '.all':{ '.type':'string', '.match':/^\w+$/ }, '.prepend':true },
+                        { '.type':'string', '.match':/^\w+$/, '.prepend':true },
+                        { '.type':'array', '.all':{ '.type':'string', '.match':/^\w+$/ }, '.prepend':true }
+                    ] },
+                    'foo bar',
+                    'baz',
+                    done
+                );
+            });
+
+        });
+
+        describe ("oneOf", function(){
+
+            it ("transforms with one of several schemata", function (done) {
+                async.parallel ([
+                    function (callback) {
+                        testTransform (
+                            { ".xor":[
+                                { '.type':'string', '.match':/^\w+$/, '.append':true },
+                                { '.type':'array', '.all':{ '.type':'string', '.match':/^\w+$/ }, '.prepend':true }
+                            ] },
+                            [ 'foo', 'bar' ],
+                            [ 'baz' ],
+                            [ 'foo', 'bar', 'baz' ],
+                            callback
+                        );
+                    },
+                    function (callback) {
+                        testTransform (
+                            { ".xor":[
+                                { '.type':'string', '.match':/^\w+$/, '.append':true },
+                                { '.type':'array', '.all':{ '.type':'string', '.match':/^\w+$/ }, '.prepend':true }
+                            ] },
+                            'baz',
+                            'foobar',
+                            'foobarbaz',
+                            callback
+                        );
+                    }
+                ], done);
+            });
+
+            it ("fails to transform with any of several schemata", function (done) {
+                testTransformFailure (
+                    { ".xor":[
+                        { '.type':'string', '.match':/^\w+$/, '.append':true },
+                        { '.type':'array', '.all':{ '.type':'string', '.match':/^\w+$/ }, '.prepend':true }
+                    ] },
+                    'foo bar',
+                    'baz',
+                    done
+                );
+            });
+
+            it ("fails to transform due to too many passing schema", function (done) {
+                testTransformFailure (
+                    { ".xor":[
+                        { '.type':'string', '.match':/^\w+$/, '.append':true },
+                        { '.type':'array', '.all':{ '.type':'string', '.match':/^\w+$/ }, '.prepend':true },
+                        { '.type':'array', '.all':{ '.type':'string', '.match':/^\w+$/ }, '.prepend':true }
+                    ] },
+                    [ 'foo', 'bar' ],
+                    [ 'baz' ],
+                    done
+                );
+            });
+
+        });
+
+        describe ("not", function(){
+
+            it ("transform when the inverse schema fails to validate after transform", function (done) {
+                async.parallel ([
+                    function (callback) {
+                        testTransform (
+                            { ".type":"string", ".not":{ ".match":/^\w+$/ }, ".append":true },
+                            "foo bar",
+                            "baz",
+                            "bazfoo bar",
+                            callback
+                        );
+                    },
+                    function (callback) {
+                        testTransform (
+                            { ".type":"string", ".not":{ ".match":/^\w+$/ }, ".append":true },
+                            "baz",
+                            "foo bar",
+                            "foo barbaz",
+                            callback
+                        );
+                    }
+                ], done);
+            });
+
+            it ("fails to transform when the inverse schema validates after transform", function (done) {
+                testTransformFailure (
+                    { ".type":"string", ".not":{ ".match":/^\w+$/ }, ".append":true, ".clip":6 },
+                    "foo bar",
+                    "baz",
+                    done
+                );
+            });
+
+        });
 
     });
 
-    describe ("oneOf", function(){
+    describe ("accumulators", function(){
 
-        it ("transforms with one of several schema");
+        it ("processes a complex .fill", function (done) {
 
-        it ("fails to transform with any of several schema");
+            testTransform (
+                {
+                    expenses:   {
+                        '.type':        'array',
+                        '.all':         {
+                            amount:         { '.type':'number', '.gt':0 },
+                            type:           { '.type':'string', '.lt':128 },
+                            description:    { '.type':'string', '.optional':true },
+                            time:           { '.type':'string', '.format':'date-time' }
+                        },
+                        '.append':      true
+                    },
+                    income:         {
+                        paycheques:     {
+                            '.type':        'array',
+                            '.all':         {
+                                amount:         { '.type':'number', '.gt':0 },
+                                description:    { '.type':'string', '.optional':true },
+                                time:           { '.type':'string', '.format':'date-time' }
+                            },
+                            '.append':      true
+                        },
+                        other:          {
+                            '.type':        'array',
+                            '.all':         {
+                                amount:         { '.type':'number', '.gt':0 },
+                                type:           { '.type':'string', '.lt':128 },
+                                description:    { '.type':'string', '.optional':true },
+                                time:           { '.type':'string', '.format':'date-time' }
+                            },
+                            '.append':      true
+                        },
+                    },
+                    monthly:        {
+                        '.default':     {},
+                        income:         {
+                            '.fill':        {
+                                '.fill':        [
+                                    'income/paycheques/amount',
+                                    'income/other/amount'
+                                ],
+                                '.type':        'number',
+                                '.add':         true
+                            },
+                            '.average':     5
+                        },
+                        expenses:       {
+                            '.fill':        {
+                                '.fill':        'expenses/amount',
+                                '.type':        'number',
+                                '.add':         true
+                            },
+                            '.average':     5
+                        }
+                    }
+                },
+                {
+                    expenses:   [
+                        {
+                            amount:         172.03,
+                            type:           'grocery',
+                            time:           '2014-6-3'
+                        },
+                        {
+                            amount:         158.88,
+                            type:           'grocery',
+                            time:           '2014-6-10'
+                        },
+                        {
+                            amount:         2500.00,
+                            type:           'rent',
+                            time:           '2014-6-15'
+                        },
+                        {
+                            amount:         204.16,
+                            type:           'grocery',
+                            time:           '2014-6-17'
+                        },
+                        {
+                            amount:         160.33,
+                            type:           'grocery',
+                            time:           '2014-6-24'
+                        },
+                        {
+                            amount:         39.99,
+                            type:           'entertainment',
+                            description:    'Deathkiller 7 Pre-Order',
+                            time:           '2014-6-19'
+                        }
+                    ],
+                    income:         {
+                        paycheques:     [
+                            {
+                                amount:         3051.48,
+                                time:           '2014-6-1'
+                            }
+                        ],
+                        other:          [
+                            {
+                                amount:         50.00,
+                                type:           'gambling',
+                                time:           '2014-6-17'
+                            }
+                        ]
+                    }
+                },
+                {
+                    expenses:   [
+                        {
+                            amount:         2500.00,
+                            type:           'rent',
+                            time:           '2014-5-15'
+                        },
+                        {
+                            amount:         24.99,
+                            type:           'grocery',
+                            description:    'beer',
+                            time:           '2014-5-15'
+                        }
+                    ],
+                    income:         {
+                        paycheques:     [
+                            {
+                                amount:         3145.72,
+                                time:           '2014-3-1'
+                            },
+                            {
+                                amount:         3009.17,
+                                time:           '2014-4-1'
+                            },
+                            {
+                                amount:         3050.89,
+                                time:           '2014-5-1'
+                            }
+                        ],
+                        other:          [
+                            {
+                                amount:         1500.00,
+                                type:           'contract',
+                                time:           '1995-1-25'
+                            }
+                        ]
+                    },
+                    monthly:    {
+                        income:     3068.59,
+                        expenses:   2524.99
+                    }
+                },
+                {
+                    expenses:   [
+                        {
+                            amount:         2500.00,
+                            type:           'rent',
+                            time:           '2014-5-15'
+                        },
+                        {
+                            amount:         24.99,
+                            type:           'grocery',
+                            description:    'beer',
+                            time:           '2014-5-15'
+                        },
+                        {
+                            amount:         172.03,
+                            type:           'grocery',
+                            time:           '2014-6-3'
+                        },
+                        {
+                            amount:         158.88,
+                            type:           'grocery',
+                            time:           '2014-6-10'
+                        },
+                        {
+                            amount:         2500.00,
+                            type:           'rent',
+                            time:           '2014-6-15'
+                        },
+                        {
+                            amount:         204.16,
+                            type:           'grocery',
+                            time:           '2014-6-17'
+                        },
+                        {
+                            amount:         160.33,
+                            type:           'grocery',
+                            time:           '2014-6-24'
+                        },
+                        {
+                            amount:         39.99,
+                            type:           'entertainment',
+                            description:    'Deathkiller 7 Pre-Order',
+                            time:           '2014-6-19'
+                        }
+                    ],
+                    income:         {
+                        paycheques:     [
+                            {
+                                amount:         3145.72,
+                                time:           '2014-3-1'
+                            },
+                            {
+                                amount:         3009.17,
+                                time:           '2014-4-1'
+                            },
+                            {
+                                amount:         3050.89,
+                                time:           '2014-5-1'
+                            },
+                            {
+                                amount:         3051.48,
+                                time:           '2014-6-1'
+                            }
+                        ],
+                        other:          [
+                            {
+                                amount:         1500.00,
+                                type:           'contract',
+                                time:           '1995-1-25'
+                            },
+                            {
+                                amount:         50.00,
+                                type:           'gambling',
+                                time:           '2014-6-17'
+                            }
+                        ]
+                    },
+                    monthly:    {
+                        income:     3075.168,
+                        expenses:   2667.0699999999997
+                    }
+                },
+                done
+            );
+        });
 
-        it ("fails to transform due to too many passing schema");
+        it ("processes a complex .list", function (done) {
 
-    });
+            testTransform (
+                { // schema
+                    dataPoints: {
+                        '.type':    'array',
+                        '.all':     {
+                            x:          { '.type':'number', '.gte':0 },
+                            y:          { '.type':'number', '.gte':0 }
+                        },
+                        '.sort':    { x:1 },
+                        '.append':  true
+                    },
+                    average:        {
+                        '.default':     {},
+                        x:        {
+                            '.type':        'number',
+                            '.list':        'dataPoints/x',
+                            '.transform':   function (points) {
+                                if (!points.length) return 0;
+                                var total = 0;
+                                console.log ('x', points);
+                                for (var i=0,j=points.length; i<j; total+=points[i], i++);
+                                return total / points.length;
+                            }
+                        },
+                        y:              {
+                            '.type':        'number',
+                            '.list':        'dataPoints/y',
+                            '.transform':   function (points) {
+                                if (!points.length) return 0;
+                                var total = 0;
+                                console.log ('y', points);
+                                for (var i=0,j=points.length; i<j; total+=points[i], i++);
+                                return total / points.length;
+                            }
+                        }
+                    },
+                },
+                { // source
+                    dataPoints: [
+                        { x:0, y:10 },
+                        { x:5, y:20 },
+                        { x:15, y:40 },
+                        { x:10, y:30 },
+                        { x:20, y:50 },
+                        { x:35, y:80 },
+                        { x:25, y:60 },
+                        { x:30, y:70 }
+                    ]
+                },
+                { }, // target
+                { // goal
+                    dataPoints: [
+                        { x:0, y:10 },
+                        { x:5, y:20 },
+                        { x:10, y:30 },
+                        { x:15, y:40 },
+                        { x:20, y:50 },
+                        { x:25, y:60 },
+                        { x:30, y:70 },
+                        { x:35, y:80 }
+                    ],
+                    average:    {
+                        x:          17.5,
+                        y:          45
+                    }
+                },
+                done
+            );
 
-    describe ("not", function(){
+        });
 
-        it ("fails to transform when the inverse schema validates");
+        it ("creates filled Objects", function (done) {
+
+            testTransform (
+                {
+                    '.default': {},
+                    vals:       { '.type':'array', '.append':true, '.all':{
+                        able:       { '.type':'number' },
+                        baker:      { '.type':'number' }
+                    } },
+                    generated:  {
+                        yoke:           { '.type':'array', '.all':{ '.type':'number' }, '.append':true },
+                        zebra:          { '.type':'array', '.all':{ '.type':'number' }, '.append':true },
+                        '.fill':        'vals',
+                        '.transform':   function (values) {
+                            return {
+                                yoke:   values.map (function (a) { return a.able }),
+                                zebra:  values.map (function (a) { return a.baker })
+                            }
+                        }
+                    }
+                },
+                {
+                    vals:   [
+                        { able:0, baker:9 },
+                        { able:1, baker:8 },
+                        { able:2, baker:7 },
+                        { able:3, baker:6 },
+                        { able:4, baker:5 },
+                    ]
+                },
+                undefined,
+                {
+                    vals:   [
+                        { able:0, baker:9 },
+                        { able:1, baker:8 },
+                        { able:2, baker:7 },
+                        { able:3, baker:6 },
+                        { able:4, baker:5 },
+                    ],
+                    generated: {
+                        yoke: [ 0, 1, 2, 3, 4 ],
+                        zebra:[ 9, 8, 7, 6, 5 ]
+                    }
+                },
+                done
+            );
+
+        });
 
     });
 

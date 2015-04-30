@@ -1,70 +1,279 @@
 likeness
 ========
-Simple JSON schema validation and transformations.
+A Javascript
 
 
-Installation
-------------
+Getting Started
+---------------
+###Installation
 ```shell
 $ npm install likeness
 ```
+
+###Basic Use
 ```javascript
 var Likeness = require ('likeness');
 var schema = new Likeness ({
     '.type':  'object',
     name:     { '.type':'string', '.match':/^[\w\s]+$/ }
 });
-var isValid = schema.validate ({ name:'schema information document' });
+try {
+    schema.validate ({ name:'schema information document' });
+} catch (err) { }
 ```
 
 
-Basic Usage
------------
+Examples
+--------
 ###Validations
 ```javascript
-var Likeness = require ('likeness');
+var likeness = require ('likeness');
 var testHuman = {
     name:   "Chris Handsome",
     tags:   [ "admin", "presenter" ]
 };
 
-var schema = new Likeness ({
-    name:     { ".type":"string", ".match":/^[\w\s]+$/ },
-    tags:     { ".type":"array", ".all":{ ".match":/^[\w]+$/ } }
+var likeAreTheyHuman = new likeness ({
+    name:       {
+        ".type":    "string",
+        ".match":   /^[\w\s]+$/
+    },
+    tags:       {
+        ".type":    "array",
+        ".all":     {
+            ".match":   /^[\w]+$/
+        }
+    }
 });
-var adminCheckSchema = new Likness ({
-    tags:   { ".exists":{ ".value":"admin" } }
+var likeAreTheyAdmin = new likeness ({
+    '.arbitrary':   true,
+    tags:           {
+        ".type':        "array",
+        ".exists":      {
+            ".value":       "admin"
+        }
+    }
 });
 
 try {
     // these will both validate
-    schema.validate (testHuman);
-    adminCheckSchema.validate (testHuman);
+    likeAreTheyHuman.validate (testHuman);
+    likeAreTheyAdmin.validate (testHuman);
 } catch (err) {  }
 ```
 
 ###Transforms
+This first example prepares a basic report for a set of data points. The accumulator `.fill` is used
+to fetch values from the source document. Note that only the pre-transform source is available to an
+accumulator, so one schema can **not** be used to add data points to the document and recalculate
+the regression in the same step.
 ```javascript
-// not ready for primetime
+var dataset = { points:[
+    { x:0, y:10.54789023 },
+    { x:1, y:12.48943548 },
+    { x:2, y:14.38518564 },
+    { x:3, y:16.47562165 },
+    { x:4, y:18.78965435 }
+] };
+
+var likeness = require ('likeness');
+var likeMakeReport = new likeness ({
+    '.default': {},
+    points:     {
+        '.type':    'array',
+        '.append':  true,
+        '.all':     {
+            x:          {
+                '.type':    'number',
+                '.gte':     0
+            },
+            y:          {
+                '.type':    'number',
+                '.gte':     0
+            }
+        },
+        '.sort':    { x:1 }
+    },
+    regression: {
+        // y = ( m * x ) + b
+        m:          { '.type':'number' },
+        b:          { '.type':'number' },
+        '.fill':    'points',
+        '.transform': function (values) {
+            var points = values.map (function(p){
+                return [ p.x, p.y ];
+            });
+            var regression = doRegression (points);
+            return {
+                m:      regression.coefficient,
+                b:      regression.constant
+            }
+        }
+    }
+});
+var report = likeMakeReport.transform (dataset);
 ```
 
-###MongoDB Transforms
+For another example, here is a simple monthly budget tracker used to merge a month's expenses into
+an overall budget history. The calculated values are applied with the transform `".average":5` which
+is a simple smoothing function. The target value is incremeneted by the difference between the
+source and target divided by five. (If a value lower than 1 is supplied, the difference is
+multiplied instead. Get a standard average with any of the following: `".average":true`,
+`".average":2`, or `".average":0.5`.)
 ```javascript
-// ready when transforms are ready
+var Budget = {
+    expenses:       [
+        {
+            amount:         2500.00,
+            type:           'rent',
+            time:           '2014-5-15'
+        },
+        {
+            amount:         24.99,
+            type:           'grocery',
+            description:    'beer',
+            time:           '2014-5-15'
+        }
+    ],
+    income:         {
+        paycheques:     [
+            {
+                amount:         3145.72,
+                time:           '2014-3-1'
+            },
+            {
+                amount:         3009.17,
+                time:           '2014-4-1'
+            },
+            {
+                amount:         3050.89,
+                time:           '2014-5-1'
+            }
+        ],
+        other:          [
+            {
+                amount:         1500.00,
+                type:           'contract',
+                time:           '1995-1-25'
+            }
+        ]
+    },
+    monthly:    {
+        income:     3068.59,
+        expenses:   2524.99
+    }
+};
+
+var JuneBudget = {
+    expenses:       [
+        {
+            amount:         172.03,
+            type:           'grocery',
+            time:           '2014-6-3'
+        },
+        {
+            amount:         158.88,
+            type:           'grocery',
+            time:           '2014-6-10'
+        },
+        {
+            amount:         2500.00,
+            type:           'rent',
+            time:           '2014-6-15'
+        },
+        {
+            amount:         204.16,
+            type:           'grocery',
+            time:           '2014-6-17'
+        },
+        {
+            amount:         160.33,
+            type:           'grocery',
+            time:           '2014-6-24'
+        },
+        {
+            amount:         39.99,
+            type:           'entertainment',
+            description:    'Deathkiller 7 Pre-Order',
+            time:           '2014-6-19'
+        }
+    ],
+    income:         {
+        paycheques:     [
+            {
+                amount:         3051.48,
+                time:           '2014-6-1'
+            }
+        ],
+        other:          [
+            {
+                amount:         50.00,
+                type:           'gambling',
+                time:           '2014-6-17'
+            }
+        ]
+    }
+};
+
+var likeness = require ('likeness');
+var likeUpdateBudget = new likeness ({
+    expenses:       {
+        '.type':        'array',
+        '.all':         {
+            amount:         { '.type':'number', '.gt':0 },
+            type:           { '.type':'string', '.lt':128 },
+            description:    { '.type':'string', '.optional':true },
+            time:           { '.type':'string', '.format':'date-time' }
+        },
+        '.append':      true
+    },
+    income:         {
+        paycheques:     {
+            '.type':        'array',
+            '.all':         {
+                amount:         { '.type':'number', '.gt':0 },
+                description:    { '.type':'string', '.optional':true },
+                time:           { '.type':'string', '.format':'date-time' }
+            },
+            '.append':      true
+        },
+        other:          {
+            '.type':        'array',
+            '.all':         {
+                amount:         { '.type':'number', '.gt':0 },
+                type:           { '.type':'string', '.lt':128 },
+                description:    { '.type':'string', '.optional':true },
+                time:           { '.type':'string', '.format':'date-time' }
+            },
+            '.append':      true
+        },
+    },
+    monthly:        {
+        '.default':     {},
+        income:         {
+            '.fill':        {
+                '.fill':        [
+                    'income/paycheques/amount',
+                    'income/other/amount'
+                ],
+                '.type':        'number',
+                '.add':         true
+            },
+            '.average':     5
+        },
+        expenses:       {
+            '.fill':        {
+                '.fill':        'expenses/amount',
+                '.type':        'number',
+                '.add':         true
+            },
+            '.average':     5
+        }
+    }
+});
+
+likeUpdateBudget.transform (Budget, JuneBudget);
 ```
-
-
-Schema Definitions
-------------------
-The most common way to specify a `likeness` schema is with a document composed of a descriptive
-Object whose children are constraints and more descriptive Objects.
-```javascript
-// the empty schema matches any basic type
-```
-
-All constraint keys begin with a period. To specify a child whose name begins with a period, use
-the `.children` constraint.
-`".children":{ ".childName":...`
 
 
 JSON Schema
@@ -77,8 +286,8 @@ exist - `likeness` just simulates it. When using transforms, the `$schema`
 
 Local copies of the base metaschemata are used, as well as the standard schemata on the JSON Schema
 site , i.e. `geo` and `card`. The Draft 4 metaschemata has been modified in the following ways:
- * Added `additionalProperties:{ $ref:'#' }` to allow rejection of invalid schemata
- * Added `format` and `$ref` to `properties` to make Draft 4 self-validate again.
+ * Added `additionalProperties:{ $ref:'#' }` to enable rejection of invalid schemata
+ * Added `format` and `$ref` to `properties` to make Draft 4 self-validate.
  * Removed `definitions` from `properties` because it is not a reserved word.
 
 Source supporting the `format` keyword borrows heavily from [jayschema]
@@ -120,14 +329,9 @@ This functionality is available regardless of the `$schema` setting.
 }
 ```
 
-Inheritence is very intuitive. The primary gotcha is when using an array of schemata with `items`.
-Schemata from `items` and `additionalItems` on the parent and child are used to assemble an array of
-schemata that mimics the result of validating the parent and child sequentially. It is possible for
-an Error to be thrown during compilation if this array cannot be resolved.
-
-###Conversion Methods
+###Using JSON Schema
 If your schema uses **any** references, it must be compiled. In order to compile, you must generate
-a `JSContext` instance. This instance is a reusable caching object that can be used to compile
+a `JSContext` instance. This instance is a reusable caching Object that can be used to compile
 related batches of schemata. If you use `$ref` across schemata which cannot be found on the network,
 you must either compile the batch in-order or call `submit` with each schema, then compile in any
 order.
@@ -143,12 +347,15 @@ var likeJSONSchema = likeness.helpers.likeJSONSChema;
 
 var context = new JSContext();
 async.series ([
+
     function (callback) {
         // anything we want to reference later should be submitted now
         context.submit (baseSchemaURL, baseSchema, callback);
     },
+
     function (callback) {
-        // you may pass id as an argument. Overrides the root `id` property
+        // you may pass id as the first argument.
+        // if you also specified an `id` property, it is overridden
         context.compile (schemaURL, schema, function (err, compiled) {
             // `compiled` can be converted to likeness-format
             fromJSONSchema (compiled, function (err, likeDef) {
@@ -165,6 +372,7 @@ async.series ([
             });
         });
     },
+
     function (callback) {
         // to simply prepare one schema for validation
         // use this helper method
@@ -181,9 +389,10 @@ async.series ([
             }
         );
     }
+
 ], function (err) {
     // we can keep using this context forever
-    // unless we want to get fresh schemata from the network
+    // unless we want to refresh schemata from the network
 });
 ```
 

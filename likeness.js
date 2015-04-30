@@ -2,9 +2,19 @@
 /**     @module/class likeness
 
 @argument schema
+@Boolean #isAsync
+@Boolean #hasTransform
+@Boolean #noTransform
+    If True, this Likeness instance may not be used for transforms. Currently this exists entirely
+    to
 */
 
 var async = require ('async');
+var Sorting = require ('./lib/Sorting');
+var Validate = require ('./lib/Validate');
+var Transform = require ('./lib/Transform');
+var Accumulate = require ('./lib/Accumulate');
+var getTypeStr = require ('./lib/GetTypeStr');
 
 /**     @class Configuration
 
@@ -200,8 +210,6 @@ var async = require ('async');
     @super Configuration
 */
 
-var getTypeStr = require ('./lib/GetTypeStr');
-
 var SPECIAL_KEYS = {
     //================================== Metadata
     //      Describe the schema document
@@ -212,8 +220,10 @@ var SPECIAL_KEYS = {
     //      Constrain by permutations of other schema
     //      Transforms by matching schema
     '.anyOf':           'anyOf',        // match first among an Array of schema
+    '.or':              'anyOf',
     '.oneOf':           'oneOf',        // match exactly one among an Array of schema
     '.exactlyOne':      'oneOf',
+    '.xor':             'oneOf',
     '.not':             'not',          // must not match schema
 
     //================================== Validations
@@ -231,26 +241,25 @@ var SPECIAL_KEYS = {
     '.child':           'children',
     '.matchChildren':   'matchChildren',   // children matched by regex rather than exact name
     '.matchChild':      'matchChildren',
-    '.min':             'min',          // min/max value, length, etc.
-    '.max':             'max',
-    '.exclusiveMin':    'exclusiveMin',
-    '.exclusiveMax':    'exclusiveMax',
-    '.minKeys':         'min',
-    '.maxKeys':         'max',
-    '.minVals':         'min',
-    '.minValues':       'min',
-    '.maxVals':         'max',
-    '.maxValues':       'max',
-    '.minLength':       'min',
-    '.maxLength':       'max',
-    '.greaterThan':     'exclusiveMin',
-    '.gt':              'exclusiveMin',
-    '.greaterOrEqual':  'min',
-    '.gte':             'min',
-    '.lessThan':        'exclusiveMax',
-    '.lt':              'exclusiveMax',
-    '.lessOrEqual':     'max',
-    '.lte':             'max',
+    '.minKeys':         'minKeys',
+    '.maxKeys':         'maxKeys',
+    '.keyCount':        'keyCount',
+    '.minVals':         'minVals',
+    '.minValues':       'minVals',
+    '.maxVals':         'maxVals',
+    '.maxValues':       'maxVals',
+    '.valCount':        'valCount',
+    '.minLength':       'minLength',
+    '.maxLength':       'maxLength',
+    '.length':          'length',
+    '.greaterThan':     'gt',
+    '.gt':              'gt',
+    '.greaterOrEqual':  'gte',
+    '.gte':             'gte',
+    '.lessThan':        'lt',
+    '.lt':              'lt',
+    '.lessOrEqual':     'lte',
+    '.lte':             'lte',
     '.mod':             'modulo',       // modulo
     '.modulo':          'modulo',       // modulo
     '.multiple':        'multiple',     // multiple of a value
@@ -267,7 +276,7 @@ var SPECIAL_KEYS = {
     '.async':           'async',        // marks a `function` constraint as async
     '.exists':          'exists',       // at least one key/value matches the given schema
     '.thereExists':     'exists',
-    '.times':           'times',        // modifies `exists` constraint - requires [times] keys to match
+    '.times':           'times',        // modifies `exists` constraint - requires [times] matches
     '.all':             'all',          // every key/value matches the given schema
     '.forAll':          'all',
     '.every':           'all',
@@ -277,10 +286,13 @@ var SPECIAL_KEYS = {
     '.value':           'value',        // exact value match
     '.anyValue':        'anyValue',     // exact value match against Array of candidates
     '.sequence':        'sequence',     // an Array of schema which must match sequentially
+    '.sort':            'sort',
     '.recurse':         'recurse',      // recursive backref
     '.format':          'format',       // validate Strings as matching a complex web-rfc format
     '.keyFormat':       'keyFormat',    // accept keys matching a complex web-rfc format
+};
 
+var TRANSFORM_KEYS = {
     //================================== Transforms
     //      These don't evaluate documents, they transform valid documents
     '.tolerant':        'tolerant',     // ignore unknown keys
@@ -297,11 +309,12 @@ var SPECIAL_KEYS = {
     '.normal':          'normal',       // normalize Numbers
     '.normalize':       'normal',
     '.normalization':   'normal',
-    '.add':             'add',        // add input number to target
+    '.add':             'add',          // add input number to target
     '.total':           'add',
     '.subtract':        'subtract',     // subtract input number from target
     '.multiply':        'multiply',     // multiply target number by input
     '.divide':          'divide',       // divide target number by input
+    '.average':         'average',      // add input to target and divide by 2.
     '.modulate':        'modFilter',    // modulo input before overwriting target
     '.modFilter':       'modFilter',
     '.inverse':         'inverse',      // multiply by -1 (works for booleans)
@@ -315,11 +328,18 @@ var SPECIAL_KEYS = {
     '.filter':          'filter',       // pass key/index and value to function for selective drop
     '.rename':          'rename',       // rename a key
     '.drop':            'drop',         // drop a key
-    '.clip':            'clip'          // restrict max length
+    '.clip':            'clip',         // restrict max length
+    '.fill':            'fill',         // accumulate values from other paths, transform repeatedly
+    '.list':            'list',         // accumulate values from other paths, create value array
+    '.select':          'select'        // filter values by validating against a schema
 };
+for (var key in TRANSFORM_KEYS)
+    SPECIAL_KEYS[key] = TRANSFORM_KEYS[key];
 
 
 var Likeness = function (schema, path, parent) {
+    if (!(this instanceof Likeness))
+        return new Likeness (schema, path, parent);
     this.path = path;
     this.parent = parent;
 
@@ -356,6 +376,9 @@ var Likeness = function (schema, path, parent) {
             if (!SPECIAL_KEYS.hasOwnProperty (key))
                 continue; // ignore unknown specials
 
+            if (TRANSFORM_KEYS.hasOwnProperty (key))
+                this.hasTransform = true;
+
             var realKey = SPECIAL_KEYS[key];
             if (realKey == 'children') { // .children field
                 this.constraints.type = 'object'; // only Objects have children
@@ -363,12 +386,13 @@ var Likeness = function (schema, path, parent) {
                 for (var child in addChildren)
                     if (this.children.hasOwnProperty (child))
                         throw new Error ('duplicate child at ' + path ? path + '.' + child : child);
-                    else
+                    else {
                         this.children[child] = new Likeness (
                             addChildren[child],
                             path ? path + '.' + key : key,
                             this
                         );
+                    }
                 continue;
             }
 
@@ -382,16 +406,12 @@ var Likeness = function (schema, path, parent) {
         this.constraints.type = 'object'; // only Objects have children
         if (this.children.hasOwnProperty (key))
             throw new Error ('duplicate child at ' + path ? path + '.' + key : key);
-        else {
-            var newChild = new Likeness (
+        else
+            this.children[key] = new Likeness (
                 schema[key],
                 path ? path + '.' + key : key,
                 this
             );
-            if (newChild.isAsync)
-                this.isAsync = true;
-            this.children[key] = newChild;
-        }
     }
 
     // if we have an async Function somewhere, mark ourselves async
@@ -399,31 +419,29 @@ var Likeness = function (schema, path, parent) {
         this.isAsync = true;
 
     // convert special constriants to Likeness instances
+    var anyTransform, oneTransform;
     if (this.constraints.anyOf)
-        for (var i in this.constraints.anyOf) {
+        for (var i=0,j=this.constraints.anyOf.length; i<j; i++) {
             this.constraints.anyOf[i] = new Likeness (this.constraints.anyOf[i], path, this);
-            if (this.constraints.anyOf[i].isAsync)
-                this.isAsync = true;
+            if (this.constraints.anyOf[i].hasTransform)
+                anyTransform = true;
         }
 
     if (this.constraints.oneOf)
-        for (var i in this.constraints.oneOf) {
+        for (var i=0,j=this.constraints.oneOf.length; i<j; i++) {
             this.constraints.oneOf[i] = new Likeness (this.constraints.oneOf[i], path, this);
-            if (this.constraints.oneOf[i].isAsync)
-                this.isAsync = true;
+            if (this.constraints.oneOf[i].hasTransform)
+                oneTransform = true;
         }
 
-    if (this.constraints.not) {
-        this.constraints.not = new Likeness (this.constraints.not, path, this);
-        if (this.constraints.not.isAsync)
-            this.isAsync = true;
-    }
+    if (anyTransform && oneTransform)
+        throw new Error ('cannot transform with .anyOf and .oneOf in the same schema');
 
-    if (this.constraints.all) {
+    if (this.constraints.not)
+        this.constraints.not = new Likeness (this.constraints.not, path, this);
+
+    if (this.constraints.all)
         this.constraints.all = new Likeness (this.constraints.all, path, this);
-        if (this.constraints.all.isAsync)
-            this.isAsync = true;
-    }
 
     if (this.constraints.dependencies) {
         var depKeys = Object.keys (this.constraints.dependencies);
@@ -447,48 +465,31 @@ var Likeness = function (schema, path, parent) {
             }
     }
 
-    if (this.constraints.extras) {
+    if (this.constraints.extras)
         this.constraints.extras = new Likeness (this.constraints.extras, path, this);
-        if (this.constraints.extras.isAsync)
-            this.isAsync = true;
-    }
 
     if (this.constraints.exists) {
         if (this.constraints.exists instanceof Array)
-            for (var i in this.constraints.exists) {
+            for (var i in this.constraints.exists)
                 this.constraints.exists[i] = new Likeness (this.constraints.exists[i], path, this);
-                if (this.constraints.exists[i].isAsync)
-                    this.isAsync = true;
-            }
-        else {
+        else
             this.constraints.exists = [ new Likeness (this.constraints.exists, path, this) ];
-            if (this.constraints.exists[0].isAsync)
-                this.isAsync = true;
-        }
     }
 
     if (this.constraints.sequence)
-        for (var i in this.constraints.sequence) {
-            var newChild = new Likeness (
+        for (var i in this.constraints.sequence)
+            this.constraints.sequence[i] = new Likeness (
                 this.constraints.sequence[i],
                 this.path ? this.path + '.' + i : String(i),
                 this
             );
-            if (newChild.isAsync)
-                this.isAsync = true;
-            this.constraints.sequence[i] = newChild;
-        }
 
-    if (this.constraints.keyTest) {
-        var newChild = new Likeness (
+    if (this.constraints.keyTest)
+        this.constraints.keyTest = new Likeness (
             this.constraints.keyTest,
             path,
             this
         );
-        if (newChild.isAsync)
-            this.isAsync = true;
-        this.constraints.keyTest = newChild;
-    }
 
     if (this.constraints.drop) {
         var drop = {};
@@ -505,8 +506,6 @@ var Likeness = function (schema, path, parent) {
         for (var pattern in this.constraints.matchChildren) {
             var subschema = new Likeness (this.constraints.matchChildren[pattern], path, this);
             subschema.pattern = new RegExp (pattern);
-            if (subschema.isAsync)
-                this.isAsync = true;
             newMatchers.push (subschema);
 
             // match against named children and merge if necessary
@@ -531,6 +530,55 @@ var Likeness = function (schema, path, parent) {
                 throw new Error ('unable to recurse - too deep');
         }
         this.constraints.recurse = pointer;
+    }
+
+    if (this.constraints.sort) {
+        if (typeof this.constraints.sort == 'number')
+            this.constraints.sort = Sorting.getLeafsort (this.constraints.sort);
+        else
+            this.constraints.sort = Sorting.getDocsort (this.constraints.sort);
+    }
+
+    if (this.constraints.fill)
+        if (typeof this.constraints.fill == 'string')
+            this.constraints.fill = [ this.constraints.fill ];
+        else if (!(this.constraints.fill instanceof Array))
+            this.constraints.fill = [ new Likeness (this.constraints.fill, this.path, this) ];
+        else for (var i=0,j=this.constraints.fill.length; i<j; i++)
+            if (typeof this.constraints.fill[i] != 'string')
+                this.constraints.fill[i] = new Likeness (this.constraints.fill[i], this.path, this);
+
+    if (this.constraints.list)
+        if (typeof this.constraints.list == 'string')
+            this.constraints.list = [ this.constraints.list ];
+        else if (!(this.constraints.list instanceof Array))
+            this.constraints.list = [ new Likeness (this.constraints.list, this.path, this) ];
+        else for (var i=0,j=this.constraints.list.length; i<j; i++)
+            if (typeof this.constraints.list[i] != 'string')
+                this.constraints.list[i] = new Likeness (this.constraints.list[i], this.path, this);
+
+    // constraint constraints
+    // cases that define an invalid schema
+    if (this.constraints.cast) {
+        if (!this.constraints.type)
+            throw new Error ('cannot use .cast without .type');
+        if (this.constraints.type instanceof Array)
+            throw new Error ('cannot use .case with an ambiguous .type');
+    }
+
+    if (this.constraints.sequence) {
+        if (this.constraints.append)
+            throw new Error ('cannot use .sequence with .append');
+        if (this.constraints.prepend)
+            throw new Error ('cannot use .sequence with .prepend');
+        if (this.constraints.insert)
+            throw new Error ('cannot use .sequence with .insert');
+    }
+
+    // propogate flag booleans upward
+    if (parent) {
+        if (this.isAsync)
+            parent.isAsync = true;
     }
 };
 
@@ -582,17 +630,43 @@ Likeness.prototype.export = function(){
     return output;
 };
 
-
-Likeness.prototype.validate = require ('./lib/Validate');
-
-
-Likeness.prototype.report = require ('./lib/Report');
+Likeness.prototype.validate = Validate;
+Likeness.prototype.transform = Transform;
+Likeness.prototype.accumulate = Accumulate;
 
 
-Likeness.prototype.transform = require ('./lib/Transform');
-
+/**     @property/Function Validator
+    Return a Function that simply validates on a schema, as fast as possible, returning a Boolean.
+    If the schema is asynchronous, a callback Function is expected. Synchronous schemata do *not*
+    honor callbacks.
+@returns/Function
+*/
+function Validator (schema) {
+    var like = new Likeness (schema);
+    return function (doc, callback) {
+        if (callback && this.isAsync) {
+            like.validate (doc, function (err) {
+                callback (!Boolean (err));
+            });
+            return;
+        }
+        try {
+            like.validate (doc);
+            return true;
+        } catch (err) {
+            return false;
+        }
+    };
+}
+Likeness.Validator = Validator;
 
 Likeness.getTypeStr = getTypeStr;
 module.exports = Likeness;
-module.exports.errors = require ('./lib/errors');
-module.exports.helpers = require ('./helpers');
+Likeness.errors = require ('./lib/errors');
+Likeness.helpers = require ('./helpers');
+
+Likeness.util = {
+    validateFormat:     require ('./lib/Format').validate,
+    TypeValidators:     require ('./lib/TypeValidators'),
+    TypeTransformers:   require ('./lib/TypeTransformers'),
+};
