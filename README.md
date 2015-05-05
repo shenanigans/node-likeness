@@ -5,16 +5,13 @@ query documents, generate, compute, update and transform data, non-destructively
 An alternate schema definition language and extensions to JSON Schema Draft 4.
 
 ####TOC
-#####[Getting Started](#getting-started)
-
-#####[Examples](#examples)
+**[Getting Started](#getting-started)**
+**[Examples](#examples)**
  * [Validations](#validations)
  * [Transforms](#transforms)
-
-#####[JSON Schema](#json-schema)
+**[JSON Schema](#json-schema)**
  * [Using JSON Schema](#using-json-schema)
-
-#####[Constraints](#constraints)
+**[Validation Constraints](#validation-constraints)**
  * [Markup Constraints](#markup-constraints)
  * [Meta-Constraints](#meta-constraints)
  * [Universal Constraints](#universal-constraints)
@@ -23,8 +20,7 @@ An alternate schema definition language and extensions to JSON Schema Draft 4.
  * [Object and Array Constraints](#object-and-array-constraints)
  * [String Constraints](#string-constraints)
  * [Number Constraints](#number-constraints)
-
-#####[Transforms](transforms)
+**[Transform Constraints](transform-constraints)**
  * [Meta-Transforms](#meta-transforms)
  * [Universal Transforms](#universal-transforms)
  * [Object Transforms](#object-transforms)
@@ -362,8 +358,8 @@ async.series ([
 ```
 
 
-Constraints
------------
+Validation Constraints
+----------------------
 ####Markup Constraints
 * **.title** A non-op reserved word required to support JSON Schema.
 * **.description** A non-op reserved word required to support JSON Schema.
@@ -425,8 +421,8 @@ Constrain by permutations of other schema.
 * **.multiple** Requires that the input be a round multiple of a number. Unlike using `.modulo` with a zero remainder, neither the input value nor specified coefficient are treated as integers.
 
 
-Transforms
-----------
+Transform Constraints
+---------------------
 ####Meta-Transforms
 
 ####Universal Transforms
