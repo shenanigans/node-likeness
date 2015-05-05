@@ -1,5 +1,5 @@
 
-var Likeness = require ('../../Likeness');
+var Likeness = require ('../../likeness');
 var assert = require ('assert');
 var async = require ('async');
 
