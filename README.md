@@ -52,8 +52,8 @@ $ npm install likeness
 
 ###Basic Use
 ```javascript
-var Likeness = require ('likeness');
-var schema = new Likeness ({
+var likeness = require ('likeness');
+var schema = new likeness ({
     '.type':  'object',
     name:     { '.type':'string', '.match':/^[\w\s]+$/ }
 });
