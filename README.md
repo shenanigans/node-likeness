@@ -1,6 +1,6 @@
 likeness
 ========
-A JSON perturbence engine in [Node.js](http://nodejs.org/). Precompile JSON Schemata, validate and
+A JSON perturbance engine in [Node.js](http://nodejs.org/). Precompile JSON Schemata, validate and
 query documents, generate, compute, update and transform data, non-destructively and reproducibly.
 An alternate schema definition language and extensions to JSON Schema Draft 4.
 
