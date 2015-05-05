@@ -3,134 +3,104 @@ var Likeness = require ('../../Likeness');
 var assert = require ('assert');
 var async = require ('async');
 
-function testValidate (doc, schema, shouldPass, callback) {
+function testValidate (doc, schema, shouldPass) {
     schema = new Likeness (schema);
 
+    var passed = false;
     try {
         schema.validate (doc);
-        if (!shouldPass)
-            return callback (new Error ('failed to reject the document (sync)'));
+        passed = true;
     } catch (err) {
-        if (shouldPass) {
-            console.log (err);
-            return callback (new Error ('failed to pass the document (sync)'));
-        }
+        if (typeof err != 'string')
+            throw err;
+        if (shouldPass)
+            throw new Error ('failed to pass the document (sync)');
     }
-
-    callback();
-
-    // try {
-    //     var sync = true;
-    //     schema.validate (doc, function (err) {
-    //         if (sync)
-    //             return callback (new Error ('callback fired synchronously'));
-    //         if (err)
-    //             if (shouldPass)
-    //                 return callback (new Error ('failed to pass the document (async)'));
-    //             else return callback();
-    //         if (shouldPass)
-    //             return callback();
-    //         callback (new Error ('failed to reject the document (async)'));
-    //     });
-    //     sync = false;
-    // } catch (err) {
-    //     callback (new Error ('threw Error synchronously in async mode'));
-    // }
+    if (!shouldPass && passed)
+        throw new Error ('failed to reject the document (sync)');
 }
 
 describe ("validate", function(){
 
     describe ("document structure", function(){
 
-        it ("gets upset about extraneous properties by default", function (done) {
+        it ("gets upset about extraneous properties by default", function(){
             testValidate (
                 { able:4 },
                 { /* empty schema */ },
-                false,
-                done
+                false
             );
         });
 
-        it ("accepts the content of .arbitrary Objects", function (done) {
+        it ("accepts the content of .arbitrary Objects", function(){
             testValidate (
                 { able:4, baker:{ able:'four' }, charlie:[ { able:'able' } ]},
                 { '.arbitrary':true },
-                true,
-                done
+                true
             );
         });
 
-        it ("gets upset about missing properties", function (done) {
+        it ("gets upset about missing properties", function(){
             testValidate (
                 { able:4, charlie:3 },
                 { able:5, baker:5, charlie:5 },
-                false,
-                done
+                false
             );
         });
 
-        it ("accepts the absence of .optional properties", function (done) {
+        it ("accepts the absence of .optional properties", function(){
             testValidate (
                 { able:4, charlie:3 },
                 { able:5, baker:{ '.type':'number', '.optional':true }, charlie:5 },
-                true,
-                done
+                true
             );
         });
 
-        it ("resolves a recursive schema", function (done) {
-            async.parallel ([
-                function (callback) {
-                    testValidate (
-                        {
+        it ("resolves a recursive schema", function(){
+            testValidate (
+                {
+                    able:   {
+                        able:   {
                             able:   {
                                 able:   {
-                                    able:   {
-                                        able:   {
-                                            baker:  42
-                                        },
-                                        baker:  9
-                                    },
-                                    baker:  11
+                                    baker:  42
                                 },
-                                baker:  9001
+                                baker:  9
                             },
-                            baker:  78
+                            baker:  11
                         },
-                        { able:{ '.optional':true, '.recurse':1 }, baker:{ '.type':'number' }},
-                        true,
-                        callback
-                    );
+                        baker:  9001
+                    },
+                    baker:  78
                 },
-                function (callback) {
-                    testValidate (
-                        {
+                { able:{ '.optional':true, '.recurse':1 }, baker:{ '.type':'number' }},
+                true
+            );
+            testValidate (
+                {
+                    able:   {
+                        able:   {
                             able:   {
                                 able:   {
-                                    able:   {
-                                        able:   {
-                                            baker:  42
-                                        },
-                                        baker:   9,
-                                        charlie: 7
-                                    },
-                                    baker:  11
+                                    baker:  42
                                 },
-                                baker:  9001
+                                baker:   9,
+                                charlie: 7
                             },
-                            baker:  78
+                            baker:  11
                         },
-                        { able:{ '.optional':true, '.recurse':1 }, baker:{ '.type':'number' }},
-                        false,
-                        callback
-                    );
-                }
-            ], done);
+                        baker:  9001
+                    },
+                    baker:  78
+                },
+                { able:{ '.optional':true, '.recurse':1 }, baker:{ '.type':'number' }},
+                false
+            );
         });
 
         describe (".dependencies", function(){
 
-            it ("uses keys to require other keynames", function (done) {
+            it ("uses keys to require other keynames", function(){
                 testValidate (
                     {
                         able:       9001,
@@ -145,12 +115,11 @@ describe ("validate", function(){
                         charlie:[ 'dog' ],
                         easy:[ 'fox' ]
                     } },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("fails when dependencies cannot be met", function (done) {
+            it ("fails when dependencies cannot be met", function(){
                 testValidate (
                     {
                         able:       9001,
@@ -164,12 +133,11 @@ describe ("validate", function(){
                         charlie:[ 'dog' ],
                         easy:[ 'fox' ]
                     } },
-                    false,
-                    done
+                    false
                 );
             });
 
-            it ("uses keys to requires keys which require keys etcetera", function (done) {
+            it ("uses keys to requires keys which require keys etcetera", function(){
                 testValidate (
                     {
                         able:       9001,
@@ -186,12 +154,11 @@ describe ("validate", function(){
                         dog:[ 'easy' ],
                         easy:[ 'fox' ]
                     } },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("fails when chaining dependencies cannot be met", function (done) {
+            it ("fails when chaining dependencies cannot be met", function(){
                 testValidate (
                     {
                         able:       9001,
@@ -207,12 +174,11 @@ describe ("validate", function(){
                         dog:[ 'easy' ],
                         easy:[ 'fox' ]
                     } },
-                    false,
-                    done
+                    false
                 );
             });
 
-            it ("activates dependent schemata", function (done) {
+            it ("activates dependent schemata", function(){
                 testValidate (
                     {
                         able:       9001,
@@ -221,12 +187,11 @@ describe ("validate", function(){
                     { '.arbitrary':true, '.all':{ '.type':'number' }, '.dependencies':{
                         able:{ baker:{ '.type':'number' } }
                     } },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("fails when activated dependent schemata fail", function (done) {
+            it ("fails when activated dependent schemata fail", function(){
                 testValidate (
                     {
                         able:       9001,
@@ -235,8 +200,7 @@ describe ("validate", function(){
                     { '.arbitrary':true, '.all':{ '.type':'number' }, '.dependencies':{
                         able:{ baker:{ '.type':'number' } }
                     } },
-                    false,
-                    done
+                    false
                 );
             });
 
@@ -269,93 +233,64 @@ describe ("validate", function(){
                 }
             };
 
-            it ("constrains shallow properties by type", function (done) {
-                async.parallel ([
-                    function (callback) {
-                        testValidate (
-                            testDoc,
-                            { '.arbitrary':true,
-                                object:     { '.type':'object', '.arbitrary':true },
-                                array:      { '.type':'array' },
-                                number:     { '.type':'number' },
-                                integer:    { '.type':'integer' },
-                                string:     { '.type':'string' },
-                                boolean:    { '.type':'boolean' },
-                                null:       { '.type':'null' },
-                                deep:       { '.type':'object', '.arbitrary':true }
-                            },
-                            true,
-                            callback
-                        );
+            it ("constrains shallow properties by type", function(){
+                testValidate (
+                    testDoc,
+                    { '.arbitrary':true,
+                        object:     { '.type':'object', '.arbitrary':true },
+                        array:      { '.type':'array' },
+                        number:     { '.type':'number' },
+                        integer:    { '.type':'integer' },
+                        string:     { '.type':'string' },
+                        boolean:    { '.type':'boolean' },
+                        null:       { '.type':'null' },
+                        deep:       { '.type':'object', '.arbitrary':true }
                     },
-                    function (callback) {
-                        testValidate (
-                            testDoc,
-                            { object:{ '.type':'array' } },
-                            false,
-                            callback
-                        );
-                    },
-                    function (callback) {
-                        testValidate (
-                            testDoc,
-                            { array:{ '.type':'object' } },
-                            false,
-                            callback
-                        );
-                    },
-                    function (callback) {
-                        testValidate (
-                            testDoc,
-                            { number:{ '.type':'string' } },
-                            false,
-                            callback
-                        );
-                    },
-                    function (callback) {
-                        testValidate (
-                            testDoc,
-                            { number:{ '.type':'int' } },
-                            false,
-                            callback
-                        );
-                    },
-                    function (callback) {
-                        testValidate (
-                            testDoc,
-                            { '.arbitrary':true, fauxNull0:{ '.type':'null' } },
-                            false,
-                            callback
-                        );
-                    },
-                    function (callback) {
-                        testValidate (
-                            testDoc,
-                            { '.arbitrary':true, fauxNull1:{ '.type':'null' } },
-                            false,
-                            callback
-                        );
-                    },
-                    function (callback) {
-                        testValidate (
-                            testDoc,
-                            { '.arbitrary':true, fauxNull2:{ '.type':'null' } },
-                            false,
-                            callback
-                        );
-                    },
-                    function (callback) {
-                        testValidate (
-                            testDoc,
-                            { '.arbitrary':true, fauxNull3:{ '.type':'null' } },
-                            false,
-                            callback
-                        );
-                    }
-                ], done);
+                    true
+                );
+                testValidate (
+                    testDoc,
+                    { object:{ '.type':'array' } },
+                    false
+                );
+                testValidate (
+                    testDoc,
+                    { array:{ '.type':'object' } },
+                    false
+                );
+                testValidate (
+                    testDoc,
+                    { number:{ '.type':'string' } },
+                    false
+                );
+                testValidate (
+                    testDoc,
+                    { number:{ '.type':'int' } },
+                    false
+                );
+                testValidate (
+                    testDoc,
+                    { '.arbitrary':true, fauxNull0:{ '.type':'null' } },
+                    false
+                );
+                testValidate (
+                    testDoc,
+                    { '.arbitrary':true, fauxNull1:{ '.type':'null' } },
+                    false
+                );
+                testValidate (
+                    testDoc,
+                    { '.arbitrary':true, fauxNull2:{ '.type':'null' } },
+                    false
+                );
+                testValidate (
+                    testDoc,
+                    { '.arbitrary':true, fauxNull3:{ '.type':'null' } },
+                    false
+                );
             });
 
-            it ("constrains deep properties by type", function (done) {
+            it ("constrains deep properties by type", function(){
                 testValidate (
                     testDoc,
                     {
@@ -370,30 +305,21 @@ describe ("validate", function(){
                             }
                         }
                     },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("constrains by arrays of type", function (done) {
-                async.parallel ([
-                    function (callback) {
-                        testValidate (
-                            { able:4, baker:'four' },
-                            { ".arbitrary":true, ".all":{ ".type":[ "number", "string" ] } },
-                            true,
-                            callback
-                        );
-                    },
-                    function (callback) {
-                        testValidate (
-                            { able:4, baker:'four', charlie:[ 'four' ] },
-                            { ".arbitrary":true, ".all":{ ".type":[ "number", "string" ] } },
-                            false,
-                            callback
-                        );
-                    }
-                ], done);
+            it ("constrains by arrays of type", function(){
+                testValidate (
+                    { able:4, baker:'four' },
+                    { ".arbitrary":true, ".all":{ ".type":[ "number", "string" ] } },
+                    true
+                );
+                testValidate (
+                    { able:4, baker:'four', charlie:[ 'four' ] },
+                    { ".arbitrary":true, ".all":{ ".type":[ "number", "string" ] } },
+                    false
+                );
             });
 
         });
@@ -401,7 +327,7 @@ describe ("validate", function(){
         describe ("eval/async", function(){
             var testDoc = "foobarbaz";
 
-            it ("validates the document when .eval is ok", function (done) {
+            it ("validates the document when .eval is ok", function(){
                 testValidate (
                     testDoc,
                     {
@@ -410,12 +336,11 @@ describe ("validate", function(){
                                 throw { error:'format', msg:'did not equal "foobarbaz"' };
                         }
                     },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("rejects the document when .eval is not ok", function (done) {
+            it ("rejects the document when .eval is not ok", function(){
                 testValidate (
                     testDoc,
                     {
@@ -424,8 +349,7 @@ describe ("validate", function(){
                                 throw { error:'format', msg:'equals "foobarbaz"' };
                         }
                     },
-                    false,
-                    done
+                    false
                 );
             });
 
@@ -440,73 +364,67 @@ describe ("validate", function(){
                 easy:       8
             };
 
-            it ("validates the document when .minKeys is satisfied", function (done) {
+            it ("validates the document when .minKeys is satisfied", function(){
                 testValidate (
                     testDoc,
                     {
                         '.arbitrary':   true,
                         '.minKeys':         4
                     },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("rejects the document when .minKeys is not satisfied", function (done) {
+            it ("rejects the document when .minKeys is not satisfied", function(){
                 testValidate (
                     testDoc,
                     {
                         '.arbitrary':   true,
                         '.minKeys':         8
                     },
-                    false,
-                    done
+                    false
                 );
             });
 
-            it ("validates the document when .maxKeys is satisfied", function (done) {
+            it ("validates the document when .maxKeys is satisfied", function(){
                 testValidate (
                     testDoc,
                     {
                         '.arbitrary':   true,
                         '.maxKeys':         10
                     },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("rejects the document when .maxKeys is not satisfied", function (done) {
+            it ("rejects the document when .maxKeys is not satisfied", function(){
                 testValidate (
                     testDoc,
                     {
                         '.arbitrary':   true,
                         '.maxKeys':         4
                     },
-                    false,
-                    done
+                    false
                 );
             });
 
-            it ("validates the document when .unique is satisfied", function (done) {
+            it ("validates the document when .unique is satisfied", function(){
                 testValidate (
                     { able:1, baker:'1', charlie:{ able:1 }, dog:{ able:'1' } },
                     { '.arbitrary':true, '.unique':true },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("rejects the document when .unique is not satisfied", function (done) {
+            it ("rejects the document when .unique is not satisfied", function(){
                 testValidate (
                     { able:1, baker:'1', charlie:{ able:1 }, dog:{ able:'1' }, easy:{ able:'1' } },
                     { '.arbitrary':true, '.unique':true },
-                    false,
-                    done
+                    false
                 );
             });
 
-            it ("validates .matchChildren", function (done) {
+            it ("validates .matchChildren", function(){
                 testValidate (
                     {
                         able:       "foo",
@@ -521,12 +439,11 @@ describe ("validate", function(){
                         },
                         dog:                { '.type':'string', '.value':"foo" }
                     },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("rejects .matchChildren", function (done) {
+            it ("rejects .matchChildren", function(){
                 testValidate (
                     {
                         able:       "foo",
@@ -541,12 +458,11 @@ describe ("validate", function(){
                         },
                         dog:                { '.type':'string', '.value':"bar" }
                     },
-                    false,
-                    done
+                    false
                 );
             });
 
-            it ("rejects .matchChildren and one illegal child", function (done) {
+            it ("rejects .matchChildren and one illegal child", function(){
                 testValidate (
                     {
                         able:       "foo",
@@ -560,12 +476,11 @@ describe ("validate", function(){
                             e:                  { '.type':'string', '.value':"foo" }
                         }
                     },
-                    false,
-                    done
+                    false
                 );
             });
 
-            it ("validates with .extra", function (done) {
+            it ("validates with .extra", function(){
                 testValidate (
                     {
                         able:       "foo",
@@ -575,12 +490,11 @@ describe ("validate", function(){
                         able:       { '.type':'string', '.value':"foo" },
                         '.extra':   { '.type':'string', '.value':"bar" }
                     },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("rejects with .extra", function (done) {
+            it ("rejects with .extra", function(){
                 testValidate (
                     {
                         able:       "foo",
@@ -590,12 +504,11 @@ describe ("validate", function(){
                         able:       { '.type':'string', '.value':"foo" },
                         '.extra':   { '.type':'string', '.value':"bar" }
                     },
-                    false,
-                    done
+                    false
                 );
             });
 
-            it ("validates with .matchChildren and .extra", function (done) {
+            it ("validates with .matchChildren and .extra", function(){
                 testValidate (
                     {
                         able:       "foo",
@@ -610,12 +523,11 @@ describe ("validate", function(){
                         },
                         '.extra':           { '.type':'string', '.value':"bar" }
                     },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("rejects matched children and one illegal child", function (done) {
+            it ("rejects matched children and one illegal child", function(){
                 testValidate (
                     {
                         able:       "foo",
@@ -629,8 +541,7 @@ describe ("validate", function(){
                             'e':                { '.type':'string', '.value':"foo" }
                         }
                     },
-                    false,
-                    done
+                    false
                 );
             });
 
@@ -639,43 +550,39 @@ describe ("validate", function(){
         describe ("Arrays", function(){
             var testDoc = [ 'able', 'baker', 'charlie', 'dog', 'easy' ];
 
-            it ("validates the document when .minVals is satisfied", function (done) {
+            it ("validates the document when .minVals is satisfied", function(){
                 testValidate (
                     testDoc,
                     { '.minVals':4 },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("rejects the document when .minVals is not satisfied", function (done) {
+            it ("rejects the document when .minVals is not satisfied", function(){
                 testValidate (
                     testDoc,
                     { '.minVals':8 },
-                    false,
-                    done
+                    false
                 );
             });
 
-            it ("validates the document when .maxVals is satisfied", function (done) {
+            it ("validates the document when .maxVals is satisfied", function(){
                 testValidate (
                     testDoc,
                     { '.maxVals':10 },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("rejects the document when .maxVals is not satisfied", function (done) {
+            it ("rejects the document when .maxVals is not satisfied", function(){
                 testValidate (
                     testDoc,
                     { '.maxVals':4 },
-                    false,
-                    done
+                    false
                 );
             });
 
-            it ("accepts the document when .format is satisfied", function (done) {
+            it ("accepts the document when .format is satisfied", function(){
                 testValidate (
                     {
                         able:       [
@@ -739,12 +646,11 @@ describe ("validate", function(){
                         george:     { '.type':'array', '.all':{ '.type':'string', '.format':'ipv6' } },
                         hotel:      { '.type':'array', '.all':{ '.type':'string', '.format':'uri' } }
                     },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("accepts the document with .keyFormat", function (done) {
+            it ("accepts the document with .keyFormat", function(){
                 testValidate (
                     {
                         'very.common@example.com':                          9001,
@@ -754,12 +660,11 @@ describe ("validate", function(){
                     {
                         '.keyFormat':'email'
                     },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("validates the document when a simple .sort is satisfied", function (done) {
+            it ("validates the document when a simple .sort is satisfied", function(){
                 testValidate (
                     [
                         null,
@@ -770,12 +675,11 @@ describe ("validate", function(){
                         false, true, true
                     ],
                     { '.sort':1 },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("validates the document when a complex .sort is satisfied", function (done) {
+            it ("validates the document when a complex .sort is satisfied", function(){
                 testValidate (
                     [
                         { able:5, baker:{ able:8, baker:{ able:26 } } },
@@ -807,247 +711,171 @@ describe ("validate", function(){
                         { able:3, baker:{ able:10, baker:{ able:24 } } }
                     ],
                     { '.sort':{ able:-1, 'baker.able':1, 'baker.baker.able':-1 } },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("rejects the document when a simple .sort is not satisfied", function (done) {
-                async.parallel ([
-                    function (callback) {
-                        testValidate (
-                            [
-                                null,
-                                0, 0, 1, 3, 7, 17, 21,
-                                { able:9001 }, { baker:17 }, { baker:42 },
-                                'three', 'two', 'zero',
-                                [ ], [ 1 ], [ 0, 1 ], [ 0, 1, 2 ], [ 0, 2 ], [ 'zero' ],
-                                false, true, true
-                            ],
-                            { '.sort':1 },
-                            false,
-                            callback
-                        );
-                    },
-                    function (callback) {
-                        testValidate (
-                            [
-                                null,
-                                0, 0, 1, 3, 7, 17, 21,
-                                'three', 'two', 'zero',
-                                { able:9001 }, { baker:42 }, { baker:17 },
-                                [ ], [ 1 ], [ 0, 1 ], [ 0, 1, 2 ], [ 0, 2 ], [ 'zero' ],
-                                false, true, true
-                            ],
-                            { '.sort':1 },
-                            false,
-                            callback
-                        );
-                    },
-                    // function (callback) {
-                    //     testValidate (
-                    //         [
-                    //             null,
-                    //             0, 0, 1, 3, 7, 17, 21,
-                    //             'three', 'two', 'zero',
-                    //             { able:9001 }, { baker:17 }, { baker:42 },
-                    //             [ ], [ 1 ], [ 0, 1 ], [ 0, 2 ], [ 0, 1, 2 ], [ 'zero' ],
-                    //             false, true, true
-                    //         ],
-                    //         { '.sort':1 },
-                    //         false,
-                    //         callback
-                    //     );
-                    // },
-                    // function (callback) {
-                    //     testValidate (
-                    //         [
-                    //             null,
-                    //             0, 0, 1, 3, 7, 17, 21,
-                    //             'three', 'two', 'zero',
-                    //             { able:9001 }, { baker:17 }, { baker:42 },
-                    //             [ ], [ 1 ], [ 'zero' ], [ 0, 1 ], [ 0, 2 ], [ 0, 1, 2 ],
-                    //             false, true, true
-                    //         ],
-                    //         { '.sort':1 },
-                    //         false,
-                    //         callback
-                    //     );
-                    // },
-                    // function (callback) {
-                    //     testValidate (
-                    //         [
-                    //             null,
-                    //             0, 0, 1, 3, 7, 17, 21,
-                    //             'three', 'two', 'zero',
-                    //             { able:9001 }, { baker:17 }, { baker:42 },
-                    //             [ ], [ 1 ], [ 0, 1 ], [ 0, 1, 2 ], [ 0, 2 ], [ 'zero' ],
-                    //             false, true, true
-                    //         ],
-                    //         { '.sort':-1 },
-                    //         false,
-                    //         callback
-                    //     );
-                    // }
-                ], done);
+            it ("rejects the document when a simple .sort is not satisfied", function(){
+                testValidate (
+                    [
+                        null,
+                        0, 0, 1, 3, 7, 17, 21,
+                        { able:9001 }, { baker:17 }, { baker:42 },
+                        'three', 'two', 'zero',
+                        [ ], [ 1 ], [ 0, 1 ], [ 0, 1, 2 ], [ 0, 2 ], [ 'zero' ],
+                        false, true, true
+                    ],
+                    { '.sort':1 },
+                    false
+                );
+                testValidate (
+                    [
+                        null,
+                        0, 0, 1, 3, 7, 17, 21,
+                        'three', 'two', 'zero',
+                        { able:9001 }, { baker:42 }, { baker:17 },
+                        [ ], [ 1 ], [ 0, 1 ], [ 0, 1, 2 ], [ 0, 2 ], [ 'zero' ],
+                        false, true, true
+                    ],
+                    { '.sort':1 },
+                    false
+                );
             });
 
-            it ("rejects the document when a complex .sort is not satisfied", function (done) {
-                async.parallel ([
-                    function (callback) {
-                        testValidate (
-                            [
-                                { able:3, baker:{ able:8, baker:{ able:26 } } },
-                                { able:3, baker:{ able:8, baker:{ able:25 } } },
-                                { able:3, baker:{ able:8, baker:{ able:24 } } },
-                                { able:3, baker:{ able:9, baker:{ able:26 } } },
-                                { able:3, baker:{ able:9, baker:{ able:25 } } },
-                                { able:3, baker:{ able:9, baker:{ able:24 } } },
-                                { able:3, baker:{ able:10, baker:{ able:26 } } },
-                                { able:3, baker:{ able:10, baker:{ able:25 } } },
-                                { able:3, baker:{ able:10, baker:{ able:24 } } },
-                                { able:4, baker:{ able:8, baker:{ able:26 } } },
-                                { able:4, baker:{ able:8, baker:{ able:25 } } },
-                                { able:4, baker:{ able:8, baker:{ able:24 } } },
-                                { able:4, baker:{ able:9, baker:{ able:26 } } },
-                                { able:4, baker:{ able:9, baker:{ able:25 } } },
-                                { able:4, baker:{ able:9, baker:{ able:24 } } },
-                                { able:4, baker:{ able:10, baker:{ able:26 } } },
-                                { able:4, baker:{ able:10, baker:{ able:25 } } },
-                                { able:4, baker:{ able:10, baker:{ able:24 } } },
-                                { able:5, baker:{ able:8, baker:{ able:26 } } },
-                                { able:5, baker:{ able:8, baker:{ able:25 } } },
-                                { able:5, baker:{ able:8, baker:{ able:24 } } },
-                                { able:5, baker:{ able:9, baker:{ able:26 } } },
-                                { able:5, baker:{ able:9, baker:{ able:25 } } },
-                                { able:5, baker:{ able:9, baker:{ able:24 } } },
-                                { able:5, baker:{ able:10, baker:{ able:26 } } },
-                                { able:5, baker:{ able:10, baker:{ able:25 } } },
-                                { able:5, baker:{ able:10, baker:{ able:24 } } }
-                            ],
-                            { '.sort':{ able:-1, 'baker.able':1, 'baker.baker.able':-1 } },
-                            false,
-                            callback
-                        );
-                    },
-                    function (callback) {
-                        testValidate (
-                            [
-                                { able:5, baker:{ able:10, baker:{ able:26 } } },
-                                { able:5, baker:{ able:10, baker:{ able:25 } } },
-                                { able:5, baker:{ able:10, baker:{ able:24 } } },
-                                { able:5, baker:{ able:9, baker:{ able:26 } } },
-                                { able:5, baker:{ able:9, baker:{ able:25 } } },
-                                { able:5, baker:{ able:9, baker:{ able:24 } } },
-                                { able:5, baker:{ able:8, baker:{ able:26 } } },
-                                { able:5, baker:{ able:8, baker:{ able:25 } } },
-                                { able:5, baker:{ able:8, baker:{ able:24 } } },
-                                { able:4, baker:{ able:10, baker:{ able:26 } } },
-                                { able:4, baker:{ able:10, baker:{ able:25 } } },
-                                { able:4, baker:{ able:10, baker:{ able:24 } } },
-                                { able:4, baker:{ able:9, baker:{ able:26 } } },
-                                { able:4, baker:{ able:9, baker:{ able:25 } } },
-                                { able:4, baker:{ able:9, baker:{ able:24 } } },
-                                { able:4, baker:{ able:8, baker:{ able:26 } } },
-                                { able:4, baker:{ able:8, baker:{ able:25 } } },
-                                { able:4, baker:{ able:8, baker:{ able:24 } } },
-                                { able:3, baker:{ able:10, baker:{ able:26 } } },
-                                { able:3, baker:{ able:10, baker:{ able:25 } } },
-                                { able:3, baker:{ able:10, baker:{ able:24 } } },
-                                { able:3, baker:{ able:9, baker:{ able:26 } } },
-                                { able:3, baker:{ able:9, baker:{ able:25 } } },
-                                { able:3, baker:{ able:9, baker:{ able:24 } } },
-                                { able:3, baker:{ able:8, baker:{ able:26 } } },
-                                { able:3, baker:{ able:8, baker:{ able:25 } } },
-                                { able:3, baker:{ able:8, baker:{ able:24 } } },
-                            ],
-                            { '.sort':{ able:-1, 'baker.able':1, 'baker.baker.able':-1 } },
-                            false,
-                            callback
-                        );
-                    },
-                    function (callback) {
-                        testValidate (
-                            [
-                                { able:5, baker:{ able:8, baker:{ able:24 } } },
-                                { able:5, baker:{ able:8, baker:{ able:25 } } },
-                                { able:5, baker:{ able:8, baker:{ able:26 } } },
-                                { able:5, baker:{ able:9, baker:{ able:24 } } },
-                                { able:5, baker:{ able:9, baker:{ able:25 } } },
-                                { able:5, baker:{ able:9, baker:{ able:26 } } },
-                                { able:5, baker:{ able:10, baker:{ able:24 } } },
-                                { able:5, baker:{ able:10, baker:{ able:25 } } },
-                                { able:5, baker:{ able:10, baker:{ able:26 } } },
-                                { able:4, baker:{ able:8, baker:{ able:24 } } },
-                                { able:4, baker:{ able:8, baker:{ able:25 } } },
-                                { able:4, baker:{ able:8, baker:{ able:26 } } },
-                                { able:4, baker:{ able:9, baker:{ able:24 } } },
-                                { able:4, baker:{ able:9, baker:{ able:25 } } },
-                                { able:4, baker:{ able:9, baker:{ able:26 } } },
-                                { able:4, baker:{ able:10, baker:{ able:24 } } },
-                                { able:4, baker:{ able:10, baker:{ able:25 } } },
-                                { able:4, baker:{ able:10, baker:{ able:26 } } },
-                                { able:3, baker:{ able:8, baker:{ able:24 } } },
-                                { able:3, baker:{ able:8, baker:{ able:25 } } },
-                                { able:3, baker:{ able:8, baker:{ able:26 } } },
-                                { able:3, baker:{ able:9, baker:{ able:24 } } },
-                                { able:3, baker:{ able:9, baker:{ able:25 } } },
-                                { able:3, baker:{ able:9, baker:{ able:26 } } },
-                                { able:3, baker:{ able:10, baker:{ able:24 } } },
-                                { able:3, baker:{ able:10, baker:{ able:25 } } },
-                                { able:3, baker:{ able:10, baker:{ able:26 } } }
-                            ],
-                            { '.sort':{ able:-1, 'baker.able':1, 'baker.baker.able':-1 } },
-                            false,
-                            callback
-                        );
-                    }
-                ], done);
+            it ("rejects the document when a complex .sort is not satisfied", function(){
+                testValidate (
+                    [
+                        { able:3, baker:{ able:8, baker:{ able:26 } } },
+                        { able:3, baker:{ able:8, baker:{ able:25 } } },
+                        { able:3, baker:{ able:8, baker:{ able:24 } } },
+                        { able:3, baker:{ able:9, baker:{ able:26 } } },
+                        { able:3, baker:{ able:9, baker:{ able:25 } } },
+                        { able:3, baker:{ able:9, baker:{ able:24 } } },
+                        { able:3, baker:{ able:10, baker:{ able:26 } } },
+                        { able:3, baker:{ able:10, baker:{ able:25 } } },
+                        { able:3, baker:{ able:10, baker:{ able:24 } } },
+                        { able:4, baker:{ able:8, baker:{ able:26 } } },
+                        { able:4, baker:{ able:8, baker:{ able:25 } } },
+                        { able:4, baker:{ able:8, baker:{ able:24 } } },
+                        { able:4, baker:{ able:9, baker:{ able:26 } } },
+                        { able:4, baker:{ able:9, baker:{ able:25 } } },
+                        { able:4, baker:{ able:9, baker:{ able:24 } } },
+                        { able:4, baker:{ able:10, baker:{ able:26 } } },
+                        { able:4, baker:{ able:10, baker:{ able:25 } } },
+                        { able:4, baker:{ able:10, baker:{ able:24 } } },
+                        { able:5, baker:{ able:8, baker:{ able:26 } } },
+                        { able:5, baker:{ able:8, baker:{ able:25 } } },
+                        { able:5, baker:{ able:8, baker:{ able:24 } } },
+                        { able:5, baker:{ able:9, baker:{ able:26 } } },
+                        { able:5, baker:{ able:9, baker:{ able:25 } } },
+                        { able:5, baker:{ able:9, baker:{ able:24 } } },
+                        { able:5, baker:{ able:10, baker:{ able:26 } } },
+                        { able:5, baker:{ able:10, baker:{ able:25 } } },
+                        { able:5, baker:{ able:10, baker:{ able:24 } } }
+                    ],
+                    { '.sort':{ able:-1, 'baker.able':1, 'baker.baker.able':-1 } },
+                    false
+                );
+                testValidate (
+                    [
+                        { able:5, baker:{ able:10, baker:{ able:26 } } },
+                        { able:5, baker:{ able:10, baker:{ able:25 } } },
+                        { able:5, baker:{ able:10, baker:{ able:24 } } },
+                        { able:5, baker:{ able:9, baker:{ able:26 } } },
+                        { able:5, baker:{ able:9, baker:{ able:25 } } },
+                        { able:5, baker:{ able:9, baker:{ able:24 } } },
+                        { able:5, baker:{ able:8, baker:{ able:26 } } },
+                        { able:5, baker:{ able:8, baker:{ able:25 } } },
+                        { able:5, baker:{ able:8, baker:{ able:24 } } },
+                        { able:4, baker:{ able:10, baker:{ able:26 } } },
+                        { able:4, baker:{ able:10, baker:{ able:25 } } },
+                        { able:4, baker:{ able:10, baker:{ able:24 } } },
+                        { able:4, baker:{ able:9, baker:{ able:26 } } },
+                        { able:4, baker:{ able:9, baker:{ able:25 } } },
+                        { able:4, baker:{ able:9, baker:{ able:24 } } },
+                        { able:4, baker:{ able:8, baker:{ able:26 } } },
+                        { able:4, baker:{ able:8, baker:{ able:25 } } },
+                        { able:4, baker:{ able:8, baker:{ able:24 } } },
+                        { able:3, baker:{ able:10, baker:{ able:26 } } },
+                        { able:3, baker:{ able:10, baker:{ able:25 } } },
+                        { able:3, baker:{ able:10, baker:{ able:24 } } },
+                        { able:3, baker:{ able:9, baker:{ able:26 } } },
+                        { able:3, baker:{ able:9, baker:{ able:25 } } },
+                        { able:3, baker:{ able:9, baker:{ able:24 } } },
+                        { able:3, baker:{ able:8, baker:{ able:26 } } },
+                        { able:3, baker:{ able:8, baker:{ able:25 } } },
+                        { able:3, baker:{ able:8, baker:{ able:24 } } },
+                    ],
+                    { '.sort':{ able:-1, 'baker.able':1, 'baker.baker.able':-1 } },
+                    false
+                );
+                testValidate (
+                    [
+                        { able:5, baker:{ able:8, baker:{ able:24 } } },
+                        { able:5, baker:{ able:8, baker:{ able:25 } } },
+                        { able:5, baker:{ able:8, baker:{ able:26 } } },
+                        { able:5, baker:{ able:9, baker:{ able:24 } } },
+                        { able:5, baker:{ able:9, baker:{ able:25 } } },
+                        { able:5, baker:{ able:9, baker:{ able:26 } } },
+                        { able:5, baker:{ able:10, baker:{ able:24 } } },
+                        { able:5, baker:{ able:10, baker:{ able:25 } } },
+                        { able:5, baker:{ able:10, baker:{ able:26 } } },
+                        { able:4, baker:{ able:8, baker:{ able:24 } } },
+                        { able:4, baker:{ able:8, baker:{ able:25 } } },
+                        { able:4, baker:{ able:8, baker:{ able:26 } } },
+                        { able:4, baker:{ able:9, baker:{ able:24 } } },
+                        { able:4, baker:{ able:9, baker:{ able:25 } } },
+                        { able:4, baker:{ able:9, baker:{ able:26 } } },
+                        { able:4, baker:{ able:10, baker:{ able:24 } } },
+                        { able:4, baker:{ able:10, baker:{ able:25 } } },
+                        { able:4, baker:{ able:10, baker:{ able:26 } } },
+                        { able:3, baker:{ able:8, baker:{ able:24 } } },
+                        { able:3, baker:{ able:8, baker:{ able:25 } } },
+                        { able:3, baker:{ able:8, baker:{ able:26 } } },
+                        { able:3, baker:{ able:9, baker:{ able:24 } } },
+                        { able:3, baker:{ able:9, baker:{ able:25 } } },
+                        { able:3, baker:{ able:9, baker:{ able:26 } } },
+                        { able:3, baker:{ able:10, baker:{ able:24 } } },
+                        { able:3, baker:{ able:10, baker:{ able:25 } } },
+                        { able:3, baker:{ able:10, baker:{ able:26 } } }
+                    ],
+                    { '.sort':{ able:-1, 'baker.able':1, 'baker.baker.able':-1 } },
+                    false
+                );
             });
 
-            it ("rejects the document when a complex .sort encounters an errant non-object", function (done) {
-                async.parallel ([
-                    function (callback) {
-                        testValidate (
-                            [
-                                { able:5, baker:{ able:8, baker:{ able:24 } } },
-                                { able:5, baker:{ able:8, baker:{ able:25 } } },
-                                [ 'able', 'baker' ],
-                                { able:5, baker:{ able:8, baker:{ able:26 } } }
-                            ],
-                            { '.sort':{ able:-1, 'baker.able':1, 'baker.baker.able':-1 } },
-                            false,
-                            callback
-                        );
-                    },
-                    function (callback) {
-                        testValidate (
-                            [
-                                { able:5, baker:{ able:8, baker:{ able:24 } } },
-                                { able:5, baker:17 },
-                                { able:5, baker:{ able:8, baker:{ able:26 } } }
-                            ],
-                            { '.sort':{ able:-1, 'baker.able':1, 'baker.baker.able':-1 } },
-                            false,
-                            callback
-                        );
-                    },
-                    function (callback) {
-                        testValidate (
-                            [
-                                { able:5, baker:{ able:8, baker:{ able:24 } } },
-                                { able:5, baker:{ able:8, baker:{ able:25 } } },
-                                { able:5, baker:{ able:8, baker:17 } }
-                            ],
-                            { '.sort':{ able:-1, 'baker.able':1, 'baker.baker.able':-1 } },
-                            false,
-                            callback
-                        );
-                    }
-                ], done);
+            it ("rejects the document when a complex .sort encounters an errant non-object", function(){
+                testValidate (
+                    [
+                        { able:5, baker:{ able:8, baker:{ able:24 } } },
+                        { able:5, baker:{ able:8, baker:{ able:25 } } },
+                        [ 'able', 'baker' ],
+                        { able:5, baker:{ able:8, baker:{ able:26 } } }
+                    ],
+                    { '.sort':{ able:-1, 'baker.able':1, 'baker.baker.able':-1 } },
+                    false
+                );
+                testValidate (
+                    [
+                        { able:5, baker:{ able:8, baker:{ able:24 } } },
+                        { able:5, baker:17 },
+                        { able:5, baker:{ able:8, baker:{ able:26 } } }
+                    ],
+                    { '.sort':{ able:-1, 'baker.able':1, 'baker.baker.able':-1 } },
+                    false
+                );
+                testValidate (
+                    [
+                        { able:5, baker:{ able:8, baker:{ able:24 } } },
+                        { able:5, baker:{ able:8, baker:{ able:25 } } },
+                        { able:5, baker:{ able:8, baker:17 } }
+                    ],
+                    { '.sort':{ able:-1, 'baker.able':1, 'baker.baker.able':-1 } },
+                    false
+                );
             });
 
-            it ("validates the document when .unique is satisfied", function (done) {
+            it ("validates the document when .unique is satisfied", function(){
                 testValidate (
                     [ 2, 4, 15, 'fifteen', '15', '2', 'too', 'two', 'TWO', 'Too', 2.2,
                         { able:10,      baker:'10' },
@@ -1057,74 +885,60 @@ describe ("validate", function(){
                         { able:10,      baker:9,    charlie:10 }
                     ],
                     { '.type':'array', '.unique':true },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("rejects the document when .unique is not satisfied", function (done) {
-                async.parallel ([
-                    function (callback) {
-                        testValidate (
-                            [ 2, 4, 15, 'fifteen', 15, '15', '2', 'too', 'two', 'TWO', 'Too', 2.2,
-                                { able:10,      baker:'10' },
-                                { able:'10',    baker:10 },
-                                { able:10,      baker:9 },
-                                { able:10,      baker:9,    charlie:9 },
-                                { able:10,      baker:9,    charlie:10 }
-                            ],
-                            { '.type':'array', '.unique':true },
-                            false,
-                            callback
-                        );
-                    },
-                    function (callback) {
-                        testValidate (
-                            [ 2, 4, 15, 'fifteen', '15', '2', 'too', 'two', 'TWO', 'TWO', 'Too', 2.2,
-                                { able:10,      baker:'10' },
-                                { able:'10',    baker:10 },
-                                { able:10,      baker:9 },
-                                { able:10,      baker:9,    charlie:9 },
-                                { able:10,      baker:9,    charlie:10 }
-                            ],
-                            { '.type':'array', '.unique':true },
-                            false,
-                            callback
-                        );
-                    },
-                    function (callback) {
-                        testValidate (
-                            [ 2, 4, 15, 'fifteen', '15', '2', 'too', 'two', 'TWO', 'Too', 2.2,
-                                { able:10,      baker:'10' },
-                                { able:'10',    baker:10 },
-                                { able:'10',    baker:10 },
-                                { able:10,      baker:9 },
-                                { able:10,      baker:9,    charlie:9 },
-                                { able:10,      baker:9,    charlie:10 }
-                            ],
-                            { '.type':'array', '.unique':true },
-                            false,
-                            callback
-                        );
-                    },
-                    function (callback) {
-                        testValidate (
-                            [ 2, 4, 15, 'fifteen', '15', '2', 'too', 'two', 'TWO', 'Too', 2.2,
-                                { able:10,      baker:'10' },
-                                { able:'10',    baker:10 },
-                                { able:10,      baker:9 },
-                                { able:10,      baker:9,    charlie:9 },
-                                { able:10,      baker:9,    charlie:9 },
-                                { able:10,      baker:9,    charlie:10 }
-                            ],
-                            { '.type':'array', '.unique':'true' },
-                            false,
-                            callback
-                        );
-                    } ], done);
+            it ("rejects the document when .unique is not satisfied", function(){
+                testValidate (
+                    [ 2, 4, 15, 'fifteen', 15, '15', '2', 'too', 'two', 'TWO', 'Too', 2.2,
+                        { able:10,      baker:'10' },
+                        { able:'10',    baker:10 },
+                        { able:10,      baker:9 },
+                        { able:10,      baker:9,    charlie:9 },
+                        { able:10,      baker:9,    charlie:10 }
+                    ],
+                    { '.type':'array', '.unique':true },
+                    false
+                );
+                testValidate (
+                    [ 2, 4, 15, 'fifteen', '15', '2', 'too', 'two', 'TWO', 'TWO', 'Too', 2.2,
+                        { able:10,      baker:'10' },
+                        { able:'10',    baker:10 },
+                        { able:10,      baker:9 },
+                        { able:10,      baker:9,    charlie:9 },
+                        { able:10,      baker:9,    charlie:10 }
+                    ],
+                    { '.type':'array', '.unique':true },
+                    false
+                );
+                testValidate (
+                    [ 2, 4, 15, 'fifteen', '15', '2', 'too', 'two', 'TWO', 'Too', 2.2,
+                        { able:10,      baker:'10' },
+                        { able:'10',    baker:10 },
+                        { able:'10',    baker:10 },
+                        { able:10,      baker:9 },
+                        { able:10,      baker:9,    charlie:9 },
+                        { able:10,      baker:9,    charlie:10 }
+                    ],
+                    { '.type':'array', '.unique':true },
+                    false
+                );
+                testValidate (
+                    [ 2, 4, 15, 'fifteen', '15', '2', 'too', 'two', 'TWO', 'Too', 2.2,
+                        { able:10,      baker:'10' },
+                        { able:'10',    baker:10 },
+                        { able:10,      baker:9 },
+                        { able:10,      baker:9,    charlie:9 },
+                        { able:10,      baker:9,    charlie:9 },
+                        { able:10,      baker:9,    charlie:10 }
+                    ],
+                    { '.type':'array', '.unique':'true' },
+                    false
+                );
             });
 
-            it ("validates with a .sequence of schemas", function (done) {
+            it ("validates with a .sequence of schemas", function(){
                 testValidate (
                     [ 2, 4, 6, 8 ],
                     { '.type':'array', '.sequence':[
@@ -1133,12 +947,11 @@ describe ("validate", function(){
                         { '.type':'number', '.gt':5, '.lt':7 },
                         { '.type':'number', '.gt':7, '.lt':9 }
                     ] },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("rejects with a .sequence of schemas", function (done) {
+            it ("rejects with a .sequence of schemas", function(){
                 testValidate (
                     [ 2, 4, 6, 8 ],
                     { '.type':'array', '.sequence':[
@@ -1147,12 +960,11 @@ describe ("validate", function(){
                         { '.type':'number', '.gt':5, '.lt':7 },
                         { '.type':'number', '.gt':7, '.lt':8 }
                     ] },
-                    false,
-                    done
+                    false
                 );
             });
 
-            it ("rejects with a .sequence of schemas and unaccounted extras", function (done) {
+            it ("rejects with a .sequence of schemas and unaccounted extras", function(){
                 testValidate (
                     [ 2, 4, 6, 8, 10 ],
                     { '.type':'array', '.sequence':[
@@ -1161,36 +973,33 @@ describe ("validate", function(){
                         { '.type':'number', '.gt':5, '.lt':7 },
                         { '.type':'number', '.gt':7, '.lt':9 }
                     ] },
-                    false,
-                    done
+                    false
                 );
             });
 
-            it ("validates with .extra", function (done) {
+            it ("validates with .extra", function(){
                 testValidate (
                     [ 2, 4, 6, 8, 10, 12, 14 ],
                     {
                         '.type':    'array',
                         '.extra':   { '.type':'number', '.gt':1, '.lt':15 }
                     },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("rejects with .extra", function (done) {
+            it ("rejects with .extra", function(){
                 testValidate (
                     [ 2, 4, 6, 8, 10, 12, 14, 16 ],
                     {
                         '.type':    'array',
                         '.extra':   { '.type':'number', '.gt':1, '.lt':15 }
                     },
-                    false,
-                    done
+                    false
                 );
             });
 
-            it ("validates with .sequence and .extra", function (done) {
+            it ("validates with .sequence and .extra", function(){
                 testValidate (
                     [ 2, 4, 6, 8, 10, 12, 14 ],
                     {
@@ -1203,12 +1012,11 @@ describe ("validate", function(){
                         ],
                         '.extra':{ '.type':'number', '.gt':9, '.lt':15 }
                     },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("rejects with .sequence and .extra", function (done) {
+            it ("rejects with .sequence and .extra", function(){
                 testValidate (
                     [ 2, 4, 6, 8, 10, 12, 14, 16 ],
                     {
@@ -1221,8 +1029,7 @@ describe ("validate", function(){
                         ],
                         '.extra':{ '.type':'number', '.gt':9, '.lt':15 }
                     },
-                    false,
-                    done
+                    false
                 );
             });
 
@@ -1231,57 +1038,51 @@ describe ("validate", function(){
         describe ("Strings", function(){
             var testDoc = "foobarbaz";
 
-            it ("validates the document when .minLength is satisfied", function (done) {
+            it ("validates the document when .minLength is satisfied", function(){
                 testValidate (
                     testDoc,
                     { '.minLength':4 },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("rejects the document when .minLength is not satisfied", function (done) {
+            it ("rejects the document when .minLength is not satisfied", function(){
                 testValidate (
                     testDoc,
                     { '.minLength':15 },
-                    false,
-                    done
+                    false
                 );
             });
 
-            it ("validates the document when .maxLength is satisfied", function (done) {
+            it ("validates the document when .maxLength is satisfied", function(){
                 testValidate (
                     testDoc,
                     { '.maxLength':15 },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("rejects the document when .maxLength is not satisfied", function (done) {
+            it ("rejects the document when .maxLength is not satisfied", function(){
                 testValidate (
                     testDoc,
                     { '.maxLength':4 },
-                    false,
-                    done
+                    false
                 );
             });
 
-            it ("validates strings with .match", function (done) {
+            it ("validates strings with .match", function(){
                 testValidate (
                     "foobar",
                     { ".match":/^\w+$/ },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("rejects strings with .match", function (done) {
+            it ("rejects strings with .match", function(){
                 testValidate (
                     "foo bar",
                     { ".match":/^\w+$/ },
-                    false,
-                    done
+                    false
                 );
             });
 
@@ -1290,93 +1091,83 @@ describe ("validate", function(){
         describe ("Numbers", function(){
             var testDoc = 7;
 
-            it ("validates the document when .gt is satisfied", function (done) {
+            it ("validates the document when .gt is satisfied", function(){
                 testValidate (
                     testDoc,
                     { '.gt':4 },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("rejects the document when .gt is not satisfied", function (done) {
+            it ("rejects the document when .gt is not satisfied", function(){
                 testValidate (
                     testDoc,
                     { '.gt':7 },
-                    false,
-                    done
+                    false
                 );
             });
 
-            it ("validates the document when .gte is satisfied", function (done) {
+            it ("validates the document when .gte is satisfied", function(){
                 testValidate (
                     testDoc,
                     { '.gte':4 },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("rejects the document when .gte is not satisfied", function (done) {
+            it ("rejects the document when .gte is not satisfied", function(){
                 testValidate (
                     testDoc,
                     { '.gte':10 },
-                    false,
-                    done
+                    false
                 );
             });
 
-            it ("validates the document when .lt is satisfied", function (done) {
+            it ("validates the document when .lt is satisfied", function(){
                 testValidate (
                     testDoc,
                     { '.lt':10 },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("rejects the document when .lt is not satisfied", function (done) {
+            it ("rejects the document when .lt is not satisfied", function(){
                 testValidate (
                     testDoc,
                     { '.lt':7 },
-                    false,
-                    done
+                    false
                 );
             });
 
-            it ("validates the document when .lte is satisfied", function (done) {
+            it ("validates the document when .lte is satisfied", function(){
                 testValidate (
                     testDoc,
                     { '.lte':10 },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("rejects the document when .lte is not satisfied", function (done) {
+            it ("rejects the document when .lte is not satisfied", function(){
                 testValidate (
                     testDoc,
                     { '.lte':6 },
-                    false,
-                    done
+                    false
                 );
             });
 
-            it ("validates the document when .modulo is satisfied", function (done) {
+            it ("validates the document when .modulo is satisfied", function(){
                 testValidate (
                     testDoc,
                     { '.modulo':[ 5, 2 ] },
-                    true,
-                    done
+                    true
                 );
             });
 
-            it ("rejects the document when .modulo is not satisfied", function (done) {
+            it ("rejects the document when .modulo is not satisfied", function(){
                 testValidate (
                     testDoc,
                     { '.modulo':[ 5, 3 ] },
-                    false,
-                    done
+                    false
                 );
             });
 
@@ -1390,7 +1181,7 @@ describe ("validate", function(){
 
             describe (".all", function(){
 
-                it ("validates with a passing .all constraint", function (done) {
+                it ("validates with a passing .all constraint", function(){
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
                         {
@@ -1400,12 +1191,11 @@ describe ("validate", function(){
                             charlie:    { '.type':'object', '.arbitrary':true },
                             dog:        { '.type':'object', '.arbitrary':true }
                         },
-                        true,
-                        done
+                        true
                     );
                 });
 
-                it ("rejects with a failing .all constraint", function (done) {
+                it ("rejects with a failing .all constraint", function(){
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
                         {
@@ -1415,8 +1205,7 @@ describe ("validate", function(){
                             charlie:    { '.type':'object', '.arbitrary':true },
                             dog:        { '.type':'object', '.arbitrary':true }
                         },
-                        false,
-                        done
+                        false
                     );
                 });
 
@@ -1424,7 +1213,7 @@ describe ("validate", function(){
 
             describe ("single .exists", function(){
 
-                it ("validates with a passing .exists constraint", function (done) {
+                it ("validates with a passing .exists constraint", function(){
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
                         {
@@ -1434,12 +1223,11 @@ describe ("validate", function(){
                             charlie:    { '.type':'object', '.arbitrary':true },
                             dog:        { '.type':'object', '.arbitrary':true }
                         },
-                        true,
-                        done
+                        true
                     );
                 });
 
-                it ("rejects with a failing .exists constraint", function (done) {
+                it ("rejects with a failing .exists constraint", function(){
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
                         {
@@ -1449,8 +1237,7 @@ describe ("validate", function(){
                             charlie:    { '.type':'object', '.arbitrary':true },
                             dog:        { '.type':'object', '.arbitrary':true }
                         },
-                        false,
-                        done
+                        false
                     );
                 });
 
@@ -1458,7 +1245,7 @@ describe ("validate", function(){
 
             describe (".exists and .times", function(){
 
-                it ("validates with a passing .times constraint", function (done) {
+                it ("validates with a passing .times constraint", function(){
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
                         {
@@ -1468,12 +1255,11 @@ describe ("validate", function(){
                             charlie:    { '.type':'object', '.arbitrary':true },
                             dog:        { '.type':'object', '.arbitrary':true }
                         },
-                        true,
-                        done
+                        true
                     );
                 });
 
-                it ("rejects with a failing .times constraint", function (done) {
+                it ("rejects with a failing .times constraint", function(){
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
                         {
@@ -1483,12 +1269,11 @@ describe ("validate", function(){
                             charlie:    { '.type':'object', '.arbitrary':true },
                             dog:        { '.type':'object', '.arbitrary':true }
                         },
-                        false,
-                        done
+                        false
                     );
                 });
 
-                it ("validates with many passing .exists constraints", function (done) {
+                it ("validates with many passing .exists constraints", function(){
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8, x:'foo' } },
                         {
@@ -1503,12 +1288,11 @@ describe ("validate", function(){
                             charlie:    { '.type':'object', '.arbitrary':true },
                             dog:        { '.type':'object', '.arbitrary':true }
                         },
-                        true,
-                        done
+                        true
                     );
                 });
 
-                it ("rejects with many passing and one failing .exist constraint", function (done) {
+                it ("rejects with many passing and one failing .exist constraint", function(){
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
                         {
@@ -1523,12 +1307,11 @@ describe ("validate", function(){
                             charlie:    { '.type':'object', '.arbitrary':true },
                             dog:        { '.type':'object', '.arbitrary':true }
                         },
-                        false,
-                        done
+                        false
                     );
                 });
 
-                it ("rejects with many passing and one failing .exist constraint", function (done) {
+                it ("rejects with many passing and one failing .exist constraint", function(){
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8 } },
                         {
@@ -1543,8 +1326,7 @@ describe ("validate", function(){
                             charlie:    { '.type':'object', '.arbitrary':true },
                             dog:        { '.type':'object', '.arbitrary':true }
                         },
-                        false,
-                        done
+                        false
                     );
                 });
 
@@ -1552,7 +1334,7 @@ describe ("validate", function(){
 
             describe (".all and multiple .exists", function(){
 
-                it ("validates with .all and many passing .exists constraints", function (done) {
+                it ("validates with .all and many passing .exists constraints", function(){
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8, x:'foo' } },
                         {
@@ -1568,12 +1350,11 @@ describe ("validate", function(){
                             charlie:    { '.type':'object', '.arbitrary':true },
                             dog:        { '.type':'object', '.arbitrary':true }
                         },
-                        true,
-                        done
+                        true
                     );
                 });
 
-                it ("rejects with passing .all and mixed passing/failing .exists", function (done) {
+                it ("rejects with passing .all and mixed passing/failing .exists", function(){
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8, x:'foo' } },
                         {
@@ -1589,12 +1370,11 @@ describe ("validate", function(){
                             charlie:    { '.type':'object', '.arbitrary':true },
                             dog:        { '.type':'object', '.arbitrary':true }
                         },
-                        false,
-                        done
+                        false
                     );
                 });
 
-                it ("rejects with many passing .exist constraints but failing .all", function (done) {
+                it ("rejects with many passing .exist constraints but failing .all", function(){
                     testValidate (
                         { able:{ s:5 }, baker:{ s:6 }, charlie:{ s:7 }, dog:{ s:8, x:'foo' } },
                         {
@@ -1610,8 +1390,7 @@ describe ("validate", function(){
                             charlie:    { '.type':'object', '.arbitrary':true },
                             dog:        { '.type':'object', '.arbitrary':true }
                         },
-                        false,
-                        done
+                        false
                     );
                 });
 
@@ -1623,21 +1402,19 @@ describe ("validate", function(){
 
             describe (".all", function(){
 
-                it ("validates with a passing .all constraint", function (done) {
+                it ("validates with a passing .all constraint", function(){
                     testValidate (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8 } ],
                         { '.all':{ s:{ '.type':'number', '.gte':4 }} },
-                        true,
-                        done
+                        true
                     );
                 });
 
-                it ("rejects with a failing .all constraint", function (done) {
+                it ("rejects with a failing .all constraint", function(){
                     testValidate (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8 } ],
                         { '.all':{ s:{ '.type':'number', '.gte':7 }} },
-                        false,
-                        done
+                        false
                     );
                 });
 
@@ -1645,31 +1422,29 @@ describe ("validate", function(){
 
             describe (".exists and .times", function(){
 
-                it ("validates with a passing .times constraint", function (done) {
+                it ("validates with a passing .times constraint", function(){
                     testValidate (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8 } ],
                         {
                             '.type':    'array',
                             '.exists':  { s:{ '.type':'number', '.gte':6 }, '.times':3, '.arbitrary':true }
                         },
-                        true,
-                        done
+                        true
                     );
                 });
 
-                it ("rejects with a failing .times constraint", function (done) {
+                it ("rejects with a failing .times constraint", function(){
                     testValidate (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8 } ],
                         {
                             '.type':    'array',
                             '.exists':  { s:{ '.type':'number', '.gte':7 }, '.times':3 }
                         },
-                        false,
-                        done
+                        false
                     );
                 });
 
-                it ("validates with many passing .exists constraints", function (done) {
+                it ("validates with many passing .exists constraints", function(){
                     testValidate (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8, x:'foo' } ],
                         {
@@ -1681,12 +1456,11 @@ describe ("validate", function(){
                                 { s:{ '.type':'number' }, x:{ '.type':'string', '.value':"foo" }}
                             ]
                         },
-                        true,
-                        done
+                        true
                     );
                 });
 
-                it ("rejects with many passing and one failing .exist constraint", function (done) {
+                it ("rejects with many passing and one failing .exist constraint", function(){
                     testValidate (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8, x:'foo' } ],
                         {
@@ -1698,8 +1472,7 @@ describe ("validate", function(){
                                 { s:{ '.type':'number' }, x:{ '.type':'string', '.value':"foo" }}
                             ]
                         },
-                        false,
-                        done
+                        false
                     );
                 });
 
@@ -1707,7 +1480,7 @@ describe ("validate", function(){
 
             describe (".all and .exists", function(){
 
-                it ("validates with .all and many passing .exists constraints", function (done) {
+                it ("validates with .all and many passing .exists constraints", function(){
                     testValidate (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8, x:'foo' } ],
                         {
@@ -1719,12 +1492,11 @@ describe ("validate", function(){
                                 { s:{ '.type':'number' }, x:{ '.type':'string', '.value':"foo" }}
                             ]
                         },
-                        true,
-                        done
+                        true
                     );
                 });
 
-                it ("rejects with passing .all and mixed passing/failing .exists", function (done) {
+                it ("rejects with passing .all and mixed passing/failing .exists", function(){
                     testValidate (
                         [ { s:5 }, { s:6 }, { s:7 }, { s:8, x:'foo' } ],
                         {
@@ -1736,29 +1508,25 @@ describe ("validate", function(){
                                 { s:{ '.type':'number' }, x:{ '.type':'string', '.value':"foo" }}
                             ]
                         },
-                        false,
-                        done
+                        false
                     );
                 });
 
-                it ("rejects with many passing .exist constraints but failing .all",
-                    function (done) {
-                        testValidate (
-                            [ { s:5 }, { s:6 }, { s:7 }, { s:8, x:'foo' } ],
-                            {
-                                '.all':     { s:{ '.type':'number', '.gte':0, '.lte':7 }, x:{} },
-                                '.exists':  [
-                                    { s:{ '.type':'number', '.gte':6 }, '.times':3, '.arbitrary':true },
-                                    { s:{ '.type':'number', '.gte':8 }, '.arbitrary':true },
-                                    { s:{ '.type':'number', '.lte':6 }, '.times':2, '.arbitrary':true },
-                                    { s:{ '.type':'number' }, x:{ '.type':'string', '.value':"foo" }}
-                                ]
-                            },
-                            false,
-                            done
-                        );
-                    }
-                );
+                it ("rejects with many passing .exist constraints but failing .all", function(){
+                    testValidate (
+                        [ { s:5 }, { s:6 }, { s:7 }, { s:8, x:'foo' } ],
+                        {
+                            '.all':     { s:{ '.type':'number', '.gte':0, '.lte':7 }, x:{} },
+                            '.exists':  [
+                                { s:{ '.type':'number', '.gte':6 }, '.times':3, '.arbitrary':true },
+                                { s:{ '.type':'number', '.gte':8 }, '.arbitrary':true },
+                                { s:{ '.type':'number', '.lte':6 }, '.times':2, '.arbitrary':true },
+                                { s:{ '.type':'number' }, x:{ '.type':'string', '.value':"foo" }}
+                            ]
+                        },
+                        false
+                    );
+                });
 
             });
 
@@ -1768,7 +1536,7 @@ describe ("validate", function(){
 
     describe ("anyOf", function(){
 
-        it ("matches one of several schema", function (done) {
+        it ("matches one of several schema", function(){
             testValidate (
                 { able:42 },
                 { able:{ '.anyOf':[
@@ -1777,12 +1545,11 @@ describe ("validate", function(){
                     { '.type':'number', '.gt':60 },
                     { '.type':'number', '.gt':40 }
                 ] } },
-                true,
-                done
+                true
             );
         });
 
-        it ("fails to match any of several schema", function (done) {
+        it ("fails to match any of several schema", function(){
             testValidate (
                 { able:42 },
                 { able:{ '.anyOf':[
@@ -1790,8 +1557,7 @@ describe ("validate", function(){
                     { '.type':'number', '.gt':80 },
                     { '.type':'number', '.gt':60 }
                 ] } },
-                false,
-                done
+                false
             );
         });
 
@@ -1799,7 +1565,7 @@ describe ("validate", function(){
 
     describe ("oneOf", function(){
 
-        it ("matches exactly one of several schema", function (done) {
+        it ("matches exactly one of several schema", function(){
             testValidate (
                 { able:42 },
                 { able:{ '.oneOf':[
@@ -1808,12 +1574,11 @@ describe ("validate", function(){
                     { '.type':'number', '.gt':60 },
                     { '.type':'number', '.gt':40 }
                 ] } },
-                true,
-                done
+                true
             );
         });
 
-        it ("fails to match any of several schema", function (done) {
+        it ("fails to match any of several schema", function(){
             testValidate (
                 { able:42 },
                 { able:{ '.oneOf':[
@@ -1821,12 +1586,11 @@ describe ("validate", function(){
                     { '.type':'number', '.gt':80 },
                     { '.type':'number', '.gt':60 },
                 ] } },
-                false,
-                done
+                false
             );
         });
 
-        it ("fails to match due to too many passing schema", function (done) {
+        it ("fails to match due to too many passing schema", function(){
             testValidate (
                 { able:42 },
                 { able:{ '.oneOf':[
@@ -1836,8 +1600,7 @@ describe ("validate", function(){
                     { '.type':'number', '.gt':40 },
                     { '.type':'number', '.gt':40 }
                 ] } },
-                false,
-                done
+                false
             );
         });
 
@@ -1845,21 +1608,19 @@ describe ("validate", function(){
 
     describe ("not", function(){
 
-        it ("matches when the inverse schema fails", function (done) {
+        it ("matches when the inverse schema fails", function(){
             testValidate (
                 { able:42 },
                 { able:{ '.not':{ '.type':'number', '.gt':90 } } },
-                true,
-                done
+                true
             );
         });
 
-        it ("fails when the inverse schema matches", function (done) {
+        it ("fails when the inverse schema matches", function(){
             testValidate (
                 { able:42 },
                 { able:{ '.not':{ '.type':'number', '.gt':40 } } },
-                false,
-                done
+                false
             );
         });
 

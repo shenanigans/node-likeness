@@ -1,5 +1,5 @@
 
-var likeness = require ('../../../likeness');
+var likeness = require ('../../likeness');
 
 var reason = { 2:"not", 4:"never", 6:"maybe" };
 function isOptimized (fn) {
@@ -32,7 +32,6 @@ describe ("transforms", function(){
     schema.transform ({}, doc);
 
     it ("optimizes #transform", function(){
-        %OptimizeFunctionOnNextCall (schema.transform);
         schema.transform ({}, doc);
         isOptimized (schema.transform);
     });
@@ -40,25 +39,21 @@ describe ("transforms", function(){
     describe ("transformer Functions", function(){
 
         it ("optimizes Number transformer", function(){
-            %OptimizeFunctionOnNextCall (likeness.util.TypeTransformers.number);
             schema.transform ({}, doc);
             isOptimized (likeness.util.TypeTransformers.number);
         });
 
         it ("optimizes String transformer", function(){
-            %OptimizeFunctionOnNextCall (likeness.util.TypeTransformers.string);
             schema.transform ({}, doc);
             isOptimized (likeness.util.TypeTransformers.string);
         });
 
         it ("optimizes Object transformer", function(){
-            %OptimizeFunctionOnNextCall (likeness.util.TypeTransformers.object);
             schema.transform ({}, doc);
             isOptimized (likeness.util.TypeTransformers.object);
         });
 
         it ("optimizes Array transformer", function(){
-            %OptimizeFunctionOnNextCall (likeness.util.TypeTransformers.array);
             schema.transform ({}, doc);
             isOptimized (likeness.util.TypeTransformers.array);
         });

@@ -1,6 +1,6 @@
 {
-    "id": "http://json-schema.org/draft-04/schema#",
-    "$schema": "http://json-schema.org/draft-04/schema#",
+    "id": "http://json-schema.org/likeness/transform#",
+    "$schema": "http://json-schema.org/likeness#",
     "description": "Core schema meta-schema",
     "type": "object",
     "default": {},
@@ -47,6 +47,7 @@
         "description": {
             "type": "string"
         },
+        "error": {},
         "default": {},
         "multipleOf": {
             "type": "number",
@@ -144,7 +145,194 @@
         "allOf": { "$ref": "#/definitions/schemaArray" },
         "anyOf": { "$ref": "#/definitions/schemaArray" },
         "oneOf": { "$ref": "#/definitions/schemaArray" },
-        "not": { "$ref": "#" }
+        "not": { "$ref": "#" },
+        "modulo": {
+            "type": "number",
+            "minimum": 0,
+            "exclusiveMinimum": true
+        },
+        "length": { "$ref": "#/definitions/positiveInteger" },
+        "uniqueProperties": {
+            "type": "boolean",
+            "default": false
+        },
+        "numProperties": { "$ref": "#/definitions/positiveInteger" },
+        "numItems": { "$ref": "#/definitions/positiveInteger" },
+        "keyFormat": {
+            "type": "string"
+        },
+        "equals": {},
+        "forAll":{ "$ref": "#" },
+        "thereExists":{
+            "anyOf": [
+                { "$ref":"#" },
+                {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": { "$ref": "#" }
+                }
+            ]
+        },
+        "times": {
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": true
+        },
+        "match": {
+            "type": "string"
+        },
+        "tolerant": {
+            "type": "boolean"
+        },
+        "cast":         {
+            "type": "boolean"
+        },
+        "set":          {},
+        "default":      {},
+        "insert":       {
+
+        },
+        "inject":       {
+            "type": "array",
+            "items": {
+                "anyOf": [
+                    {
+                        "type": "array",
+                        "items": [
+                            { "type":[ "integer", "null" ], "minimum":0 },
+                            { "type":"string" }
+                        ]
+                    },
+                    {
+                        "type": "array",
+                        "items": [
+                            { "type":"string" }
+                        ]
+                    }
+                ]
+            }
+        },
+        "append":       {
+            "type": "boolean"
+        },
+        "prepend":      {
+            "type": "boolean"
+        },
+        "normalize":    {
+            "type": "number"
+        },
+        "asItem":       {
+            "type": "boolean"
+        },
+        "add":          {
+            "type": "boolean"
+        },
+        "subtract":     {
+            "type": "boolean"
+        },
+        "multiply":     {
+            "type": "boolean"
+        },
+        "divide":       {
+            "type": "boolean"
+        },
+        "average":      {
+            "type": [ "number", "boolean" ],
+            "minimum": 0,
+            "exclusiveMinimum": true
+        },
+        "modulate":     {
+            "type": "integer",
+            "minimum": 1
+        },
+        "invert":       {
+            "type": "boolean"
+        },
+        "reciprocal":   {
+            "type": "boolean"
+        },
+        "case":         {
+            "type": "string",
+            "enum": [ "upper", "lower" ]
+        },
+        "rename":       {
+            "type": "object",
+            "forAll": {
+                "type": "string"
+            }
+        },
+        "drop":         {
+
+        },
+        "clip":         {
+
+        },
+        "getYear":      {
+            "type": "boolean"
+        },
+        "getYearName":  {
+            "type": "boolean"
+        },
+        "getMonth":     {
+            "type": "boolean"
+        },
+        "getMonthName": {
+            "type": "boolean"
+        },
+        "getDay":       {
+            "type": "boolean"
+        },
+        "getDayNum":    {
+            "type": "boolean"
+        },
+        "getDayName":   {
+            "type": "boolean"
+        },
+        "filter": {
+            "$ref": "#"
+        },
+        "group": {
+            "$ref": "#"
+        },
+        "groupTransform": {
+            "$ref": "#"
+        },
+        "fill": {
+            "oneOf": [
+                { "type": "string" },
+                { "$ref": "#" },
+                { "type": "array", "items": {
+                    "oneOf": [
+                        { "type": "string" },
+                        { "$ref": "#" }
+                    ]
+                } }
+            ]
+        },
+        "list": {
+            "oneOf": [
+                { "type": "string" },
+                { "$ref": "#" },
+                { "type": "array", "items": {
+                    "oneOf": [
+                        { "type": "string" },
+                        { "$ref": "#" }
+                    ]
+                } }
+            ]
+        },
+        "sort": {
+            "oneOf": [
+                { "type":"number", "enum":[ 1, -1 ] },
+                { "type":"object", "forAll":{ "type":"number", "enum":[ 1, -1 ] } }
+            ]
+        },
+        "total": {
+            "type": "boolean"
+        },
+        "mean": {
+            "type": "boolean"
+        }
     },
     "dependencies": {
         "exclusiveMaximum": [ "maximum" ],

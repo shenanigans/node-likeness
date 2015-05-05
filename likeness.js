@@ -215,6 +215,7 @@ var SPECIAL_KEYS = {
     //      Describe the schema document
     '.title':           'title',
     '.description':     'description',
+    '.error':           'error',
 
     //================================== Meta-Validations
     //      Constrain by permutations of other schema
@@ -304,13 +305,14 @@ var TRANSFORM_KEYS = {
     '.newKeys':         'newKeys',      // ignore keys already found on the target
     '.append':          'append',       // append input to target Array/String
     '.prepend':         'prepend',      // prepend input to target Array/String
-    '.asElem':          'asElem',
-    '.asItem':          'asItem',
+    '.total':           'total',        // convert input Array to total (and panic over non-Numbers)
+    '.mean':            'mean',         // convert input Array to mean (and panic over non-Numbers)
+    '.asElem':          'asElem',       // treat input as an Array containing the input
+    '.asItem':          'asElem',
     '.normal':          'normal',       // normalize Numbers
     '.normalize':       'normal',
     '.normalization':   'normal',
     '.add':             'add',          // add input number to target
-    '.total':           'add',
     '.subtract':        'subtract',     // subtract input number from target
     '.multiply':        'multiply',     // multiply target number by input
     '.divide':          'divide',       // divide target number by input
@@ -320,21 +322,38 @@ var TRANSFORM_KEYS = {
     '.inverse':         'inverse',      // multiply by -1 (works for booleans)
     '.invert':          'inverse',
     '.reciprocal':      'reciprocal',   // 1/x
-    '.split':           'split',        // regex split
-    '.group':           'group',        // regex exec -> Array of groups
     '.case':            'case',         // transform string capitalization
     '.transform':       'transform',
     '.function':        'transform',
-    '.filter':          'filter',       // pass key/index and value to function for selective drop
+    '.filter':          'filter',       // selectively retain values and properties with a schema
     '.rename':          'rename',       // rename a key
     '.drop':            'drop',         // drop a key
     '.clip':            'clip',         // restrict max length
     '.fill':            'fill',         // accumulate values from other paths, transform repeatedly
     '.list':            'list',         // accumulate values from other paths, create value array
-    '.select':          'select'        // filter values by validating against a schema
+    '.select':          'select',       // filter accumulated values by validating against a schema
+    '.group':           'group',        // create groups of similar values
+    '.groupTransform':  'groupTransform', // transform each group from a .group transform
+    '.getYear':         'getYear',      // shift a date to the start of the date's year
+    '.getYearName':     'getYearName',  // get a string of the year i.e. "2014" or "300 bce"
+    '.getMonth':        'getMonth',     // shift a date to the start of the date's month
+    '.getMonthName':    'getMonthName', // get a string of the month's name i.e. "july"
+    '.getDay':          'getDay',       // shift a date to the start of the date's day
+    '.getDayNum':       'getDayNum',    // get a number for a date's day of the month
+    '.getDayName':      'getDayName'    // get a string for a date's day of the week i.e. "friday"
 };
 for (var key in TRANSFORM_KEYS)
     SPECIAL_KEYS[key] = TRANSFORM_KEYS[key];
+
+var dateConstraints = {
+    '.getYear':         true,
+    '.getYearName':     true,
+    '.getMonth':        true,
+    '.getMonthName':    true,
+    '.getDay':          true,
+    '.getDayNum':       true,
+    '.getDayName':      true
+};
 
 
 var Likeness = function (schema, path, parent) {
@@ -371,6 +390,8 @@ var Likeness = function (schema, path, parent) {
     this.constraints = {};
     this.children = {};
     for (var key in schema) {
+        if (Object.hasOwnProperty.call (dateConstraints, key))
+            this.isDateConverter = true;
         if (key[0] == '.') {
             // special key
             if (!SPECIAL_KEYS.hasOwnProperty (key))
@@ -498,8 +519,12 @@ var Likeness = function (schema, path, parent) {
         this.constraints.drop = drop;
     }
 
-    if (this.constraints.match)
-        this.constraints.match = new RegExp (this.constraints.match);
+    if (this.constraints.match) {
+        if (typeof this.constraints.match == 'string')
+            this.constraints.match = new RegExp (this.constraints.match);
+        else if (!(this.constraints.match instanceof RegExp))
+            throw new Error ('invalid regular expression object');
+    }
 
     if (this.constraints.matchChildren) {
         var newMatchers = [];
@@ -539,7 +564,8 @@ var Likeness = function (schema, path, parent) {
             this.constraints.sort = Sorting.getDocsort (this.constraints.sort);
     }
 
-    if (this.constraints.fill)
+    if (this.constraints.fill) {
+        this.isAccumulator = true;
         if (typeof this.constraints.fill == 'string')
             this.constraints.fill = [ this.constraints.fill ];
         else if (!(this.constraints.fill instanceof Array))
@@ -547,8 +573,10 @@ var Likeness = function (schema, path, parent) {
         else for (var i=0,j=this.constraints.fill.length; i<j; i++)
             if (typeof this.constraints.fill[i] != 'string')
                 this.constraints.fill[i] = new Likeness (this.constraints.fill[i], this.path, this);
+    }
 
-    if (this.constraints.list)
+    if (this.constraints.list) {
+        this.isAccumulator = true;
         if (typeof this.constraints.list == 'string')
             this.constraints.list = [ this.constraints.list ];
         else if (!(this.constraints.list instanceof Array))
@@ -556,6 +584,24 @@ var Likeness = function (schema, path, parent) {
         else for (var i=0,j=this.constraints.list.length; i<j; i++)
             if (typeof this.constraints.list[i] != 'string')
                 this.constraints.list[i] = new Likeness (this.constraints.list[i], this.path, this);
+    }
+
+    if (this.constraints.group) {
+        this.isAccumulator = true;
+        this.constraints.group = new Likeness (this.constraints.group, this.path, this);
+    }
+
+    if (this.constraints.groupTransform) {
+        this.isAccumulator = true;
+        this.constraints.groupTransform = new Likeness (
+            this.constraints.groupTransform,
+            this.path,
+            this
+        );
+    }
+
+    if (this.constraints.select)
+        this.constraints.select = new Likeness (this.constraints.select);
 
     // constraint constraints
     // cases that define an invalid schema
@@ -574,6 +620,9 @@ var Likeness = function (schema, path, parent) {
         if (this.constraints.insert)
             throw new Error ('cannot use .sequence with .insert');
     }
+
+    if (this.constraints.filter)
+        this.constraints.filter = new Likeness (this.constraints.filter);
 
     // propogate flag booleans upward
     if (parent) {

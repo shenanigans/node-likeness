@@ -4,11 +4,10 @@ var async = require ('async');
 var merge = require ('./mergeJSONSchema');
 
 /**     @module likeness */
-
-
 var SIMPLE_CONVERSIONS = {
     'title':                '.title',
     'description':          '.description',
+    'error':                '.error',
     'type':                 '.type',
     'enum':                 '.anyValue',
     'multipleOf':           '.multiple',
@@ -35,21 +34,33 @@ var SIMPLE_CONVERSIONS = {
     'set':                  '.setVal',
     'default':              '.default',
     'insert':               '.insert',
+    'inject':               '.inject',
     'append':               '.append',
     'prepend':              '.prepend',
     'normalize':            '.normal',
+    'asItem':               '.asItem',
     'add':                  '.add',
     'subtract':             '.subtract',
     'multiply':             '.multiply',
     'divide':               '.divide',
-    'modulate':             '.modulate',
+    'average':              '.average',
+    'modulate':             '.modFilter',
     'invert':               '.inverse',
     'reciprocal':           '.reciprocal',
+    'total':                '.total',
+    'mean':                 '.mean',
     'case':                 '.case',
     'rename':               '.rename',
     'drop':                 '.drop',
     'clip':                 '.clip',
-    'slice':                '.slice'
+    'getYear':              '.getYear',
+    'getYearName':          '.getYearName',
+    'getMonth':             '.getMonth',
+    'getMonthName':         '.getMonthName',
+    'getDay':               '.getDay',
+    'getDayNum':            '.getDayNum',
+    'getDayName':           '.getDayName',
+    'sort':                 '.sort'
 };
 
 var SCHEMA_CONVERSIONS = {
@@ -57,7 +68,10 @@ var SCHEMA_CONVERSIONS = {
     'not':                  '.not',
     'forAll':               '.all',
     'equals':               '.value',
-    'keyFormat':            '.keyFormat'
+    'keyFormat':            '.keyFormat',
+    'group':                '.group',
+    'groupTransform':       '.groupTransform',
+    'filter':               '.filter'
 };
 
 var MAP_CONVERSIONS = {
@@ -233,6 +247,35 @@ function fromJSONSchema (metaschema, schema, callback, context, path) {
             });
         }
 
+        if (key == 'fill' || key == 'list') {
+            key = '.'+key;
+            if (typeof subschema == 'string') {
+                output[key] = subschema;
+                return callback();
+            }
+            if (!(subschema instanceof Array))
+                return fromJSONSchema (metaschema, subschema, function (err, subsublikeness) {
+                    if (err) return callback (err);
+                    output[key] = (subsublikeness);
+                    callback();
+                }, context, path);
+
+            output[key] = [];
+            async.times (subschema.length, function (subsubschemaI, callback) {
+                var subsubschema = subschema[subsubschemaI];
+                if (typeof subsubschema == 'string') {
+                    output[key][subsubschemaI] = subsubschema;
+                    return callback();
+                }
+                fromJSONSchema (metaschema, subschema, function (err, subsublikeness) {
+                    if (err) return callback (err);
+                    output[key][subsubschemaI] = subsublikeness;
+                    callback();
+                }, context, path);
+            }, callback);
+            return;
+        }
+
         callback();
     }, function (err) {
         if (err) return callback (err);
@@ -250,18 +293,18 @@ function fromJSONSchema (metaschema, schema, callback, context, path) {
 
         // exclusive minimum and maximum
         if (exMin)
-            if (!output['.min'])
+            if (output['.gte'] === undefined)
                 return callback (new Error ('specified exclusiveMinimum but no minimum'));
             else {
-                output['.exclusiveMin'] = output['.min'];
-                delete output['.min'];
+                output['.gt'] = output['.gte'];
+                delete output['.gte'];
             }
-        if (exMax) // ex-lax hurr hurr
-            if (!output['.max'])
+        if (exMax)
+            if (output['.lte'] === undefined)
                 return callback (new Error ('specified exclusiveMaximum but no maximum'));
             else {
-                output['.exclusiveMax'] = output['.max'];
-                delete output['.max'];
+                output['.lt'] = output['.lte'];
+                delete output['.lte'];
             }
 
         // required / optional

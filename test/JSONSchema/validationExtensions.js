@@ -6,7 +6,7 @@ function testValidate (document, schema, isValid, callback) {
     schema.$schema = 'http://json-schema.org/likeness';
 
     var context = new likeness.helpers.JSContext();
-    context.compile ('https://foo.bar.com/test-schema', schema, function (err, compiled, metaschema) {
+    context.compile (schema, function (err, compiled, metaschema) {
         if (err) return callback (err);
         likeness.helpers.fromJSONSchema (metaschema, compiled, function (err, likeDoc) {
             if (err) return callback (err);

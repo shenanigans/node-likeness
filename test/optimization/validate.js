@@ -1,5 +1,5 @@
 
-var likeness = require ('../../../likeness');
+var likeness = require ('../../likeness');
 
 var reason = { 2:"not", 4:"never", 6:"maybe" };
 function isOptimized (fn) {
@@ -32,7 +32,6 @@ describe ("validations", function(){
     schema.validate (doc);
 
     it ("optimizes #validate", function(){
-        %OptimizeFunctionOnNextCall (schema.validate);
         schema.validate (doc);
         isOptimized (schema.validate);
     });
@@ -40,25 +39,21 @@ describe ("validations", function(){
     describe ("validator Functions", function(){
 
         it ("optimizes Number validator", function(){
-            %OptimizeFunctionOnNextCall (likeness.util.TypeValidators.number);
             schema.validate (doc);
             isOptimized (likeness.util.TypeValidators.number);
         });
 
         it ("optimizes String validator", function(){
-            %OptimizeFunctionOnNextCall (likeness.util.TypeValidators.string);
             schema.validate (doc);
             isOptimized (likeness.util.TypeValidators.string);
         });
 
         it ("optimizes Object validator", function(){
-            %OptimizeFunctionOnNextCall (likeness.util.TypeValidators.object);
             schema.validate (doc);
             isOptimized (likeness.util.TypeValidators.object);
         });
 
         it ("optimizes Array validator", function(){
-            %OptimizeFunctionOnNextCall (likeness.util.TypeValidators.array);
             schema.validate (doc);
             isOptimized (likeness.util.TypeValidators.array);
         });

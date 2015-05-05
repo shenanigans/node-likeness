@@ -4,12 +4,10 @@ var likeness = require ('../../likeness');
 
 function testValidate (document, schema, isValid, callback) {
     var context = new likeness.helpers.JSContext();
-    context.compile ('https://foo.bar.com/test-schema', schema, function (err, compiled, metaschema) {
+    context.compile (schema, function (err, compiled, metaschema) {
         if (err) return callback (err);
-        // console.log (compiled);
         likeness.helpers.fromJSONSchema (metaschema, compiled, function (err, likeDoc) {
             if (err) return callback (err);
-            // console.log ('fromJSONSchema', likeDoc);
 
             var likeInstance = new likeness (likeDoc);
 
@@ -25,22 +23,6 @@ function testValidate (document, schema, isValid, callback) {
             }
 
             callback();
-
-            // try {
-            //     var alive = true;
-            //     return likeInstance.validate (document, function (err) {
-            //         if (err) {
-            //             if (isValid)
-            //                 return callback (new Error ('failed to pass the document (async)'));
-            //         } else if (!isValid)
-            //             return callback (new Error ('failed to reject the document (async)'));
-
-            //         // final pass
-            //         callback();
-            //     });
-            // } catch (err) {
-            //     return callback (new Error ('async validation synchronously threw an Error'));
-            // }
         });
     });
 }

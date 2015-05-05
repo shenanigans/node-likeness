@@ -356,11 +356,12 @@ JSContext.prototype.resolveCompiled = function (parent, ref, callback, replaceme
     @argument/undefined|Object compilation
 */
 var ASS = {};
+var RAW_KEYS = { inject:true, rename:true, default:true, sort:true };
 JSContext.prototype.compile = function (parent, id, schema, callback, replacements) {
     if (arguments.length == 2) {
-        callback = id;
         schema = parent;
-        parent = id;
+        callback = id;
+        parent = id = undefined;
         replacements = {};
     } else if (arguments.length == 3) {
         callback = schema;
@@ -371,11 +372,13 @@ JSContext.prototype.compile = function (parent, id, schema, callback, replacemen
     if (!replacements) replacements = {};
 
     if (!id) {
-        if (!schema.id)
-            return process.nextTick (function(){ callback (new Error (
-                'cannot compile a schema without knowing what path it represents'
-            )); });
-        id = schema.id;
+        if (schema.id)
+            id = schema.id;
+        else
+            id = 'http://json-schema.org/default#';
+            // return process.nextTick (function(){ callback (new Error (
+            //     'cannot compile a schema without knowing what path it represents'
+            // )); });
     }
     var idInfo = url.parse (id);
     if (!idInfo.hash)
@@ -398,16 +401,27 @@ JSContext.prototype.compile = function (parent, id, schema, callback, replacemen
             var iter = level;
             function compileIterSublevel (sublevelI, callback) {
                 var sublevel = iter[sublevelI];
+                if (typeof sublevel != 'object') {
+                    compilation[sublevelI] = sublevel;
+                    return callback();
+                }
                 var key;
-                if (isObj)
+                if (isObj) {
                     key = keys[sublevelI];
+                    if (Object.hasOwnProperty.call (RAW_KEYS, key)) {
+                        compilation[sublevelI] = sublevel;
+                        return callback();
+                    }
+                }
 
                 // properties is special - it may contain the key "$ref" without being a reference
                 if (
                     isObj
-                 && key == 'properties'
-                 || key == 'patternProperties'
-                 || key == 'dependencies'
+                 && (
+                        key == 'properties'
+                     || key == 'patternProperties'
+                     || key == 'dependencies'
+                 )
                 ) {
                     // a dream within a dream
                     var propKeys = Object.keys (sublevel);
@@ -437,10 +451,6 @@ JSContext.prototype.compile = function (parent, id, schema, callback, replacemen
                     });
                 }
 
-                if (typeof sublevel != 'object') {
-                    compilation[sublevelI] = sublevel;
-                    return callback();
-                }
                 compileLevel (
                     isObj ? path + '/' + keys[sublevelI] : path,
                     sublevel,
@@ -455,7 +465,13 @@ JSContext.prototype.compile = function (parent, id, schema, callback, replacemen
             if (!(level instanceof Array)) {
                 isObj = true;
 
-                if (Object.hasOwnProperty.call (level, '$ref')) { // it's a reference!
+                // reference?
+
+                if (
+                    level
+                 && typeof level == 'object'
+                 && Object.hasOwnProperty.call (level, '$ref')
+                ) {
                     // is it a recursive reference?
                     var refPath = url.parse (level.$ref);
                     var parentHash = parent.hash || '#';
@@ -547,16 +563,18 @@ JSContext.prototype.compile = function (parent, id, schema, callback, replacemen
                 }
 
                 keys = [];
-                var allKeys = Object.keys (level);
                 iter = [];
-                for (var i=0,j=allKeys.length; i<j; i++) {
-                    var key = allKeys[i];
-                    if (
-                        Object.hasOwnProperty.call (metaschema.properties, key)
-                     && key != 'definitions'
-                    ) {
-                        iter.push (level[key])
-                        keys.push (key);
+                if (level && typeof level == 'object') {
+                    var allKeys = Object.keys (level);
+                    for (var i=0,j=allKeys.length; i<j; i++) {
+                        var key = allKeys[i];
+                        if (
+                            Object.hasOwnProperty.call (metaschema.properties, key)
+                         && key != 'definitions'
+                        ) {
+                            iter.push (level[key])
+                            keys.push (key);
+                        }
                     }
                 }
             }

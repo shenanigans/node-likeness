@@ -1,6 +1,8 @@
 likeness
 ========
-A Javascript
+A JSON perturbence engine in [Node.js](http://nodejs.org/). Precompile JSON Schemata, validate and
+query documents, generate, compute, update and transform data, non-destructively and reproducibly.
+An alternate schema definition language and extensions to JSON Schema Draft 4.
 
 
 Getting Started
@@ -67,6 +69,7 @@ This first example prepares a basic report for a set of data points. The accumul
 to fetch values from the source document. Note that only the pre-transform source is available to an
 accumulator, so one schema can **not** be used to add data points to the document and recalculate
 the regression in the same step.
+
 ```javascript
 var dataset = { points:[
     { x:0, y:10.54789023 },
@@ -114,165 +117,109 @@ var likeMakeReport = new likeness ({
 var report = likeMakeReport.transform (dataset);
 ```
 
-For another example, here is a simple monthly budget tracker used to merge a month's expenses into
-an overall budget history. The calculated values are applied with the transform `".average":5` which
-is a simple smoothing function. The target value is incremeneted by the difference between the
-source and target divided by five. (If a value lower than 1 is supplied, the difference is
-multiplied instead. Get a standard average with any of the following: `".average":true`,
-`".average":2`, or `".average":0.5`.)
+For another example, here is a simple monthly budget tracker used to generate an average monthly
+budget.
 ```javascript
-var Budget = {
+var BudgetHistory = {
     expenses:       [
         {
-            amount:         2500.00,
-            type:           'rent',
-            time:           '2014-5-15'
+            amount: 2500.00,
+            type:   'rent',
+            time:   new Date (2014, 6, 3).getTime()
         },
         {
-            amount:         24.99,
-            type:           'grocery',
-            description:    'beer',
-            time:           '2014-5-15'
+            amount: 272.03,
+            type:   'grocery',
+            time:   new Date (2014, 6, 17).getTime()
+        },
+        {
+            amount: 2500.00,
+            type:   'rent',
+            time:   new Date (2014, 7, 3).getTime()
+        },
+        {
+            amount: 244.91,
+            type:   'grocery',
+            time:   new Date (2014, 7, 13).getTime()
+        },
+        {
+            amount: 2500.00,
+            type:   'rent',
+            time:   new Date (2014, 8, 3).getTime()
+        },
+        {
+            amount: 301.21,
+            type:   'grocery',
+            time:   new Date (2014, 8, 14).getTime()
         }
     ],
     income:         {
         paycheques:     [
             {
-                amount:         3145.72,
-                time:           '2014-3-1'
+                amount: 3051.48,
+                time:   new Date (2014, 6, 1).getTime()
             },
             {
-                amount:         3009.17,
-                time:           '2014-4-1'
+                amount: 2998.75,
+                time:   new Date (2014, 7, 1).getTime()
             },
             {
-                amount:         3050.89,
-                time:           '2014-5-1'
+                amount: 3100.51,
+                time:   new Date (2014, 8, 1).getTime()
             }
         ],
         other:          [
             {
-                amount:         1500.00,
-                type:           'contract',
-                time:           '1995-1-25'
-            }
-        ]
-    },
-    monthly:    {
-        income:     3068.59,
-        expenses:   2524.99
-    }
-};
-
-var JuneBudget = {
-    expenses:       [
-        {
-            amount:         172.03,
-            type:           'grocery',
-            time:           '2014-6-3'
-        },
-        {
-            amount:         158.88,
-            type:           'grocery',
-            time:           '2014-6-10'
-        },
-        {
-            amount:         2500.00,
-            type:           'rent',
-            time:           '2014-6-15'
-        },
-        {
-            amount:         204.16,
-            type:           'grocery',
-            time:           '2014-6-17'
-        },
-        {
-            amount:         160.33,
-            type:           'grocery',
-            time:           '2014-6-24'
-        },
-        {
-            amount:         39.99,
-            type:           'entertainment',
-            description:    'Deathkiller 7 Pre-Order',
-            time:           '2014-6-19'
-        }
-    ],
-    income:         {
-        paycheques:     [
-            {
-                amount:         3051.48,
-                time:           '2014-6-1'
-            }
-        ],
-        other:          [
-            {
-                amount:         50.00,
-                type:           'gambling',
-                time:           '2014-6-17'
+                amount: 50.00,
+                type:   'gambling',
+                time:   new Date (2014, 8, 21).getTime()
             }
         ]
     }
 };
 
 var likeness = require ('likeness');
-var likeUpdateBudget = new likeness ({
-    expenses:       {
-        '.type':        'array',
-        '.all':         {
-            amount:         { '.type':'number', '.gt':0 },
-            type:           { '.type':'string', '.lt':128 },
-            description:    { '.type':'string', '.optional':true },
-            time:           { '.type':'string', '.format':'date-time' }
-        },
-        '.append':      true
-    },
-    income:         {
-        paycheques:     {
-            '.type':        'array',
-            '.all':         {
-                amount:         { '.type':'number', '.gt':0 },
-                description:    { '.type':'string', '.optional':true },
-                time:           { '.type':'string', '.format':'date-time' }
-            },
-            '.append':      true
-        },
-        other:          {
-            '.type':        'array',
-            '.all':         {
-                amount:         { '.type':'number', '.gt':0 },
-                type:           { '.type':'string', '.lt':128 },
-                description:    { '.type':'string', '.optional':true },
-                time:           { '.type':'string', '.format':'date-time' }
-            },
-            '.append':      true
-        },
-    },
-    monthly:        {
+var likeMakeBudgetReport = new likeness ({
+    '.tolerant':    true,
+    monthlyAverages: {
         '.default':     {},
         income:         {
+            '.mean:         true
             '.fill':        {
                 '.fill':        [
-                    'income/paycheques/amount',
-                    'income/other/amount'
+                    'income/paycheques',
+                    'income/other'
                 ],
-                '.type':        'number',
-                '.add':         true
+                '.group':       {
+                    '.fill':        'time',
+                    '.getMonth':    true,
+                },
+                '.groupTrasnform': {
+                    '.fill':        'amount',
+                    '.add':         true
+                }
             },
-            '.average':     5
         },
         expenses:       {
+            '.mean:         true
             '.fill':        {
-                '.fill':        'expenses/amount',
-                '.type':        'number',
-                '.add':         true
-            },
-            '.average':     5
+                '.fill':        'expenses',
+                '.group':       {
+                    '.fill':        'time',
+                    '.getMonth':    true,
+                },
+                '.groupTransform': {
+                    '.fill':        'amount',
+                    '.add':         true
+                }
+            }
         }
     }
 });
 
-likeUpdateBudget.transform (Budget, JuneBudget);
+var budgetReport = likeMakeBudgetReport
+    .transform (Budget, JuneBudget)
+    ;
 ```
 
 
@@ -336,7 +283,7 @@ related batches of schemata. If you use `$ref` across schemata which cannot be f
 you must either compile the batch in-order or call `submit` with each schema, then compile in any
 order.
 
-Note that when compiling a schema with no `id`, the schema is always mapped to
+Note that when compiling a schema with no `id`, `likeness` will pretend that the schema is bound to
 `http://json-schema.org/default#`.
 
 ```javascript
