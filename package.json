@@ -1,29 +1,28 @@
 {
   "name": "likeness",
-  "version": "0.1.2",
-  "description": "Simple JSON schema validation and transformation engine.",
+  "version": "0.2.0",
+  "description": "JSON Perturbence Engine",
   "keywords": [
-    "mongodb",
-    "local",
-    "memory",
-    "in-memory",
-    "orm",
-    "model"
+    "json",
+    "validate",
+    "validation",
+    "schema",
+    "json schema",
+    "jsonschema"
   ],
-  "homepage": "https://github.com/shenanigans/likeness",
-  "bugs": "https://github.com/shenanigans/likeness/issues",
+  "homepage": "https://github.com/shenanigans/node-likeness",
+  "bugs": "https://github.com/shenanigans/node-likeness/issues",
   "license": "MIT",
   "author": "Kevin \"Schmidty\" Smith",
   "main": "likeness.js",
-  "repository": "https://github.com/shenanigans/likeness.git",
+  "repository": "https://github.com/shenanigans/node-likeness.git",
   "dependencies": {
-    "async": "^0.9.0",
-    "mocha": "^2.2.3"
+    "async": "^0.9.0"
   },
   "devDependencies": {
-    "mongodb": "^1.4.22"
+    "mocha": "^2.2.3"
   },
   "scripts": {
-    "test": "./node_modules/.bin/mocha"
+    "test": "test.sh"
   }
 }
