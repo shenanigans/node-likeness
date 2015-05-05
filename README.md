@@ -35,9 +35,6 @@ An alternate schema definition language and extensions to JSON Schema Draft 4.
 
 **[JSON Schema Extensions](#json-schema-extensions)**
 
-
-Development
------------
 `likeness` is developed and maintained by Kevin "Schmidty" Smith under the MIT license. If you're
 excited about it, please consider [giving me some money.](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=PN6C2AZTS2FP8&lc=US&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHosted)
 I could really use it.
