@@ -231,7 +231,7 @@ var likeMakeBudgetReport = new likeness ({
             },
         },
         expenses:       {
-            '.mean:         true
+            '.mean':         true
             '.fill':        {
                 '.fill':        'expenses',
                 '.group':       {
