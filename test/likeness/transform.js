@@ -1905,23 +1905,11 @@ describe ("#transform", function(){
                             able:   { '.type':'boolean', '.cast':true }
                         },
                         {    // source
-                            able:   'False'
+                            able:   'false'
                         },
                         { }, // target
                         {    // goal
                             able:   false
-                        }
-                    );
-                    testTransform (
-                        {    // schema
-                            able:   { '.type':'boolean', '.cast':true }
-                        },
-                        {    // source
-                            able:   'TRUE'
-                        },
-                        { }, // target
-                        {    // goal
-                            able:   true
                         }
                     );
                 });

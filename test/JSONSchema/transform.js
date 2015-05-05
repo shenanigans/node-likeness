@@ -1550,26 +1550,11 @@ describe ("transform (likeness extensions)", function(){
                                     properties:{ able:{ type:'boolean', cast:true } },
                                 },
                                 {    // source
-                                    able:   'False'
+                                    able:   'false'
                                 },
                                 { }, // target
                                 {    // goal
                                     able:   false
-                                },
-                                callback
-                            );
-                        },
-                        function (callback) {
-                            testTransform (
-                                {    // schema
-                                    properties:{ able:{ type:'boolean', cast:true } },
-                                },
-                                {    // source
-                                    able:   'TRUE'
-                                },
-                                { }, // target
-                                {    // goal
-                                    able:   true
                                 },
                                 callback
                             );
