@@ -11,7 +11,6 @@ var schema = new likeness ({
 
 module.exports = {
     start:  function(){
-        console.log ('optimo start');
         %OptimizeFunctionOnNextCall (schema.validate);
         %OptimizeFunctionOnNextCall (likeness.util.TypeValidators.number);
         %OptimizeFunctionOnNextCall (likeness.util.TypeValidators.string);
