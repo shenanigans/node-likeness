@@ -152,6 +152,12 @@
             "exclusiveMinimum": true
         },
         "length": { "$ref": "#/definitions/positiveInteger" },
+        "sort": {
+            "oneOf": [
+                { "type":"number", "enum":[ 1, -1 ] },
+                { "type":"object", "forAll":{ "type":"number", "enum":[ 1, -1 ] } }
+            ]
+        },
         "uniqueProperties": {
             "type": "boolean",
             "default": false

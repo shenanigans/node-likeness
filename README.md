@@ -33,7 +33,17 @@ An alternate schema definition language and extensions to JSON Schema Draft 4.
  * [Number Transforms](#number-transforms)
  * [Conversion Transforms](#conversion-transforms)
 
-**[JSON Schema Constraints](#json-schema-constraints)**
+**[JSON Schema Extensions](#json-schema-extensions)**
+
+
+Development
+-----------
+`likeness` is developed and maintained by Kevin "Schmidty" Smith under the MIT license. If you're
+excited about it, please consider [giving me some money.](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=PN6C2AZTS2FP8&lc=US&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHosted)
+I could really use it.
+
+I am also interested in job opportunities: just [open an issue](https://github.com/shenanigans/node-likeness/issues/new)
+and I'll get back to you.
 
 
 Getting Started

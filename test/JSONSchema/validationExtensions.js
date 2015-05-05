@@ -16,11 +16,11 @@ function testValidate (document, schema, isValid, callback) {
                 likeInstance.validate (document);
                 if (!isValid)
                     return process.nextTick (function(){
-                        callback (new Error ('failed to reject the document (sync)'));
+                        callback (new Error ('failed to reject the document'));
                     });
             } catch (err) {
                 if (isValid)
-                    return callback (new Error ('failed to pass the document (sync)'));
+                    return callback (new Error ('failed to pass the document'));
             }
 
             callback();
@@ -299,6 +299,27 @@ describe ("validate (likeness extensions)", function(){
                             { maximum:40, times:5 },
                             { multipleOf:30, times:2 }
                         ] } } },
+                        false,
+                        callback
+                    );
+                }
+            ], done);
+        });
+
+        it ("require an Array to be in the correct order", function (done) {
+            async.parallel ([
+                function (callback) {
+                    testValidate (
+                        [ { able:1 }, { able:2 }, { able:3 } ],
+                        { type:'array', sort:{ able:1 } },
+                        true,
+                        callback
+                    );
+                },
+                function (callback) {
+                    testValidate (
+                        [ { able:4 }, { able:2 }, { able:3 } ],
+                        { type:'array', sort:{ able:1 } },
                         false,
                         callback
                     );

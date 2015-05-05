@@ -710,7 +710,7 @@ describe ("validate", function(){
                         { able:3, baker:{ able:10, baker:{ able:25 } } },
                         { able:3, baker:{ able:10, baker:{ able:24 } } }
                     ],
-                    { '.sort':{ able:-1, 'baker.able':1, 'baker.baker.able':-1 } },
+                    { '.sort':{ able:-1, 'baker/able':1, 'baker/baker/able':-1 } },
                     true
                 );
             });
@@ -773,7 +773,7 @@ describe ("validate", function(){
                         { able:5, baker:{ able:10, baker:{ able:25 } } },
                         { able:5, baker:{ able:10, baker:{ able:24 } } }
                     ],
-                    { '.sort':{ able:-1, 'baker.able':1, 'baker.baker.able':-1 } },
+                    { '.sort':{ able:-1, 'baker/able':1, 'baker/baker/able':-1 } },
                     false
                 );
                 testValidate (
@@ -806,7 +806,7 @@ describe ("validate", function(){
                         { able:3, baker:{ able:8, baker:{ able:25 } } },
                         { able:3, baker:{ able:8, baker:{ able:24 } } },
                     ],
-                    { '.sort':{ able:-1, 'baker.able':1, 'baker.baker.able':-1 } },
+                    { '.sort':{ able:-1, 'baker/able':1, 'baker/baker/able':-1 } },
                     false
                 );
                 testValidate (
@@ -839,7 +839,7 @@ describe ("validate", function(){
                         { able:3, baker:{ able:10, baker:{ able:25 } } },
                         { able:3, baker:{ able:10, baker:{ able:26 } } }
                     ],
-                    { '.sort':{ able:-1, 'baker.able':1, 'baker.baker.able':-1 } },
+                    { '.sort':{ able:-1, 'baker/able':1, 'baker/baker/able':-1 } },
                     false
                 );
             });
@@ -852,7 +852,7 @@ describe ("validate", function(){
                         [ 'able', 'baker' ],
                         { able:5, baker:{ able:8, baker:{ able:26 } } }
                     ],
-                    { '.sort':{ able:-1, 'baker.able':1, 'baker.baker.able':-1 } },
+                    { '.sort':{ able:-1, 'baker/able':1, 'baker/baker/able':-1 } },
                     false
                 );
                 testValidate (
@@ -861,7 +861,7 @@ describe ("validate", function(){
                         { able:5, baker:17 },
                         { able:5, baker:{ able:8, baker:{ able:26 } } }
                     ],
-                    { '.sort':{ able:-1, 'baker.able':1, 'baker.baker.able':-1 } },
+                    { '.sort':{ able:-1, 'baker/able':1, 'baker/baker/able':-1 } },
                     false
                 );
                 testValidate (
@@ -870,7 +870,7 @@ describe ("validate", function(){
                         { able:5, baker:{ able:8, baker:{ able:25 } } },
                         { able:5, baker:{ able:8, baker:17 } }
                     ],
-                    { '.sort':{ able:-1, 'baker.able':1, 'baker.baker.able':-1 } },
+                    { '.sort':{ able:-1, 'baker/able':1, 'baker/baker/able':-1 } },
                     false
                 );
             });
