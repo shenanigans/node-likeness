@@ -6,11 +6,14 @@ An alternate schema definition language and extensions to JSON Schema Draft 4.
 
 ####TOC
 #####[Getting Started](#getting-started)
+
 #####[Examples](#examples)
  * [Validations](#validations)
  * [Transforms](#transforms)
+
 #####[JSON Schema](#json-schema)
  * [Using JSON Schema](#using-json-schema)
+
 #####[Constraints](#constraints)
  * [Markup Constraints](#markup-constraints)
  * [Meta-Constraints](#meta-constraints)
@@ -20,6 +23,7 @@ An alternate schema definition language and extensions to JSON Schema Draft 4.
  * [Object and Array Constraints](#object-and-array-constraints)
  * [String Constraints](#string-constraints)
  * [Number Constraints](#number-constraints)
+
 #####[Transforms](transforms)
  * [Meta-Transforms](#meta-transforms)
  * [Universal Transforms](#universal-transforms)
