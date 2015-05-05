@@ -226,55 +226,40 @@ var SPECIAL_KEYS = {
     '.exactlyOne':      'oneOf',
     '.xor':             'oneOf',
     '.not':             'not',          // must not match schema
+    '.recurse':         'recurse',      // recursive backref
 
     //================================== Validations
     //      Constrain documents and incoming transforms
+    // Universal
     '.type':            'type',         // restrict document type
     '.adHoc':           'adHoc',        // accept unknown keys
     '.arbitrary':       'adHoc',
     '.optional':        'optional',     // accept `undefined` as a valid document
     '.invalid':         'invalid',      // if traversed, always invalid
+    '.eval':            'eval',         // call-the-function evaluation
+    '.evaluate':        'eval',
+    '.value':           'value',        // exact value match
+    '.anyValue':        'anyValue',     // exact value match against Array of candidates
+
+    // Objects
     '.dependencies':    'dependencies', // schema or name requirements triggered by key presence
     '.unique':          'unique',       // all children or array elements must be unique values
     '.key':             'keyTest',      // for matching arbitrary keys
     '.keyTest':         'keyTest',
     '.children':        'children',     // optional - this is the escape strategy for special keys
     '.child':           'children',
+    '.properties':      'children',
+    '.props':           'children',
     '.matchChildren':   'matchChildren',   // children matched by regex rather than exact name
     '.matchChild':      'matchChildren',
+    '.minProperties':   'minKeys',
+    '.minProps':        'minkeys',
     '.minKeys':         'minKeys',
     '.maxKeys':         'maxKeys',
     '.keyCount':        'keyCount',
-    '.minVals':         'minVals',
-    '.minValues':       'minVals',
-    '.maxVals':         'maxVals',
-    '.maxValues':       'maxVals',
-    '.valCount':        'valCount',
-    '.minLength':       'minLength',
-    '.maxLength':       'maxLength',
-    '.length':          'length',
-    '.greaterThan':     'gt',
-    '.gt':              'gt',
-    '.greaterOrEqual':  'gte',
-    '.gte':             'gte',
-    '.lessThan':        'lt',
-    '.lt':              'lt',
-    '.lessOrEqual':     'lte',
-    '.lte':             'lte',
-    '.mod':             'modulo',       // modulo
-    '.modulo':          'modulo',       // modulo
-    '.multiple':        'multiple',     // multiple of a value
-    '.length':          'length',       // exact length match
-    '.len':             'length',
-    '.keys':            'length',
-    '.vals':            'length',
-    '.values':          'length',
-    '.match':           'match',        // regex value matching (only available for .type="string")
-    '.regex':           'match',
-    '.regexp':          'match',
-    '.eval':            'eval',         // call-the-function evaluation
-    '.evaluate':        'eval',
-    '.async':           'async',        // marks a `function` constraint as async
+    '.keys':            'keyCount',
+    '.propCount':       'keyCount',
+    '.propertyCount':   'keyCount',
     '.exists':          'exists',       // at least one key/value matches the given schema
     '.thereExists':     'exists',
     '.times':           'times',        // modifies `exists` constraint - requires [times] matches
@@ -282,15 +267,54 @@ var SPECIAL_KEYS = {
     '.forAll':          'all',
     '.every':           'all',
     '.forEvery':        'all',
+    '.keyFormat':       'keyFormat',    // accept keys matching a complex web-rfc format
+
+    // Arrays
+    '.minVals':         'minVals',
+    '.minValues':       'minVals',
+    '.minItems':        'minVals',
+    '.maxVals':         'maxVals',
+    '.maxValues':       'maxVals',
+    '.maxItems':        'maxItems',
+    '.valCount':        'valCount',
+    '.vals':            'valCount',
+    '.values':          'valCount',
+    '.itemCount':       'valCount',
+    '.items':           'valCount',
+    '.sort':            'sort',
+    '.sequence':        'sequence',     // an Array of schema which must match sequentially
+
+    // Objects and Arrays
     '.extras':          'extras',       // keys or elements not covered by any other constraint
     '.extra':           'extras',
-    '.value':           'value',        // exact value match
-    '.anyValue':        'anyValue',     // exact value match against Array of candidates
-    '.sequence':        'sequence',     // an Array of schema which must match sequentially
-    '.sort':            'sort',
-    '.recurse':         'recurse',      // recursive backref
-    '.format':          'format',       // validate Strings as matching a complex web-rfc format
-    '.keyFormat':       'keyFormat',    // accept keys matching a complex web-rfc format
+
+    // Numbers
+    '.gt':              'gt',
+    '.greaterThan':     'gt',
+    '.>':               'gt',
+    '.gte':             'gte',
+    '.greaterOrEqual':  'gte',
+    '.>=':              'gte',
+    '.lt':              'lt',
+    '.lessThan':        'lt',
+    '.<':               'lt',
+    '.lte':             'lte',
+    '.lessOrEqual':     'lte',
+    '.<=':              'lte',
+    '.mod':             'modulo',       // modulo
+    '.modulo':          'modulo',       // modulo
+    '.%':               'modulo',
+    '.multiple':        'multiple',     // multiple of a value
+
+    // Strings
+    '.minLength':       'minLength',
+    '.maxLength':       'maxLength',
+    '.length':          'length',       // exact length match
+    '.len':             'length',
+    '.match':           'match',        // regex value matching (only available for .type="string")
+    '.regex':           'match',
+    '.regexp':          'match',
+    '.format':          'format'        // validate Strings as matching a complex web-rfc format
 };
 
 var TRANSFORM_KEYS = {

@@ -55,7 +55,6 @@ function JSContext (options) {
             this.options[key] = options[key];
         else
             this.options[key] = DEFAULT_OPTIONS[key];
-    this.namespace = {};
     this.universeCache = {};
     for (var host in standardSchemata) {
         var standardPaths = this.universeCache[host] = {};
@@ -219,21 +218,6 @@ JSContext.prototype.resolve = function (parent, ref, callback, replacements) {
           + refPath.hash
           ;
         replacements[fullRef] = parent.hash || '#';
-            //     return process.nextTick (function(){ callback (new Error (
-            //         'cycle detected in ref '
-            //       + ref
-            //       + '\n'
-            //       + chain.join (' -> ')
-            //       + ' -> '
-            //       + canonicalURL
-            //     )); });
-            // }
-
-        // clone the chain and append the current url
-        // var newChain = [];
-        // newChain.push.apply (newChain, chain);
-        // newChain.push (canonicalURL);
-        // chain = newChain;
     }
 
     // any chance it's already been resolved?

@@ -4,6 +4,31 @@ A JSON perturbence engine in [Node.js](http://nodejs.org/). Precompile JSON Sche
 query documents, generate, compute, update and transform data, non-destructively and reproducibly.
 An alternate schema definition language and extensions to JSON Schema Draft 4.
 
+####TOC
+#####[Getting Started](#getting-started)
+#####[Examples](#examples)
+ * [Validations](#validations)
+ * [Transforms](#transforms)
+#####[JSON Schema](#json-schema)
+ * [Using JSON Schema](#using-json-schema)
+#####[Constraints](#constraints)
+ * [Markup Constraints](#markup-constraints)
+ * [Meta-Constraints](#meta-constraints)
+ * [Universal Constraints](#universal-constraints)
+ * [Object Constraints](#object-constraints)
+ * [Array Constraints](#array-constraints)
+ * [Object and Array Constraints](#object-and-array-constraints)
+ * [String Constraints](#string-constraints)
+ * [Number Constraints](#number-constraints)
+#####[Transforms](transforms)
+ * [Meta-Transforms](#meta-transforms)
+ * [Universal Transforms](#universal-transforms)
+ * [Object Transforms](#object-transforms)
+ * [Array Transforms](#array-transforms)
+ * [Object and Array Transforms](#object-and-array-transforms)
+ * [String Transforms](#string-transforms)
+ * [Number Transforms](#number-transforms)
+
 
 Getting Started
 ---------------
@@ -81,22 +106,7 @@ var dataset = { points:[
 
 var likeness = require ('likeness');
 var likeMakeReport = new likeness ({
-    '.default': {},
-    points:     {
-        '.type':    'array',
-        '.append':  true,
-        '.all':     {
-            x:          {
-                '.type':    'number',
-                '.gte':     0
-            },
-            y:          {
-                '.type':    'number',
-                '.gte':     0
-            }
-        },
-        '.sort':    { x:1 }
-    },
+    '.tolerant': true,
     regression: {
         // y = ( m * x ) + b
         m:          { '.type':'number' },
@@ -114,7 +124,13 @@ var likeMakeReport = new likeness ({
         }
     }
 });
-var report = likeMakeReport.transform (dataset);
+
+try {
+    var report = likeMakeReport.transform (dataset);
+} catch (err) {
+    // if doRegression produces a bad value,
+    // the schema will catch it and throw a message
+}
 ```
 
 For another example, here is a simple monthly budget tracker used to generate an average monthly
@@ -194,7 +210,7 @@ var likeMakeBudgetReport = new likeness ({
                     '.fill':        'time',
                     '.getMonth':    true,
                 },
-                '.groupTrasnform': {
+                '.groupTransform': {
                     '.fill':        'amount',
                     '.add':         true
                 }
@@ -228,11 +244,10 @@ JSON Schema
 Likeness supports the latest [JSON Schema Draft 4](http://json-schema.org/documentation.html)
 specification. Expanded validation capabilities and transforms are available to JSON Schema users
 by setting the `$schema` property to `http://json-schema.org/likeness`. This URL does not actually
-exist - `likeness` just simulates it. When using transforms, the `$schema`
-`http://json-schema.org/likeness/transform` should be used.
+exist, `likeness` just simulates it. When transforms are desired, use `$schema:"http://json-schema.org/likeness/transform"`.
 
 Local copies of the base metaschemata are used, as well as the standard schemata on the JSON Schema
-site , i.e. `geo` and `card`. The Draft 4 metaschemata has been modified in the following ways:
+site , i.e. `geo` and `card`. The Draft 4 metaschema has been modified in the following ways:
  * Added `additionalProperties:{ $ref:'#' }` to enable rejection of invalid schemata
  * Added `format` and `$ref` to `properties` to make Draft 4 self-validate.
  * Removed `definitions` from `properties` because it is not a reserved word.
@@ -284,8 +299,7 @@ you must either compile the batch in-order or call `submit` with each schema, th
 order.
 
 Note that when compiling a schema with no `id`, `likeness` will pretend that the schema is bound to
-`http://json-schema.org/default#`.
-
+the phony url `http://json-schema.org/default#`.
 ```javascript
 var likeness = require ('likeness');
 var JSContext = likeness.helpers.JSContext;
@@ -342,6 +356,86 @@ async.series ([
     // unless we want to refresh schemata from the network
 });
 ```
+
+
+Constraints
+-----------
+####Markup Constraints
+* **.title** A non-op reserved word required to support JSON Schema.
+* **.description** A non-op reserved word required to support JSON Schema.
+* **.error** When a document fails to validate here or within a deeper child, this value is thrown. The most proximate `.error` is used. Note that the same reference is always thrown, so if you choose to throw an Object or Array it will be shared and potentially make your schema stateful.
+
+####Meta-Constraints
+Constrain by permutations of other schema.
+* **.or** (synonyms: `.anyOf`) match first among an Array of schema
+* **.xor** (synonyms: `.oneOf`, `.exactlyOne`)  match exactly one among an Array of schema
+* **.not** must not match schema
+
+####Universal Constraints
+* **.type** restrict document type
+* **.adHoc** (synonyms: `.arbitrary`) accept unknown keys
+* **.optional** accept `undefined` as a valid document
+* **.invalid** if traversed, the document is always invalid
+* **.value** a JSON-compatible reference which is compared for exact equality against the input.
+* **.anyValue** a list of JSON-compatible references which are compared for exact equality against the input.
+* **.recurse** declared as a Number. Navigate up as many levels and apply this parent schema to the input value. Normal `likeness` schemata are tolerant of circular references but JSON Schemata must be valid JSON Documents. Precompilation eliminates every non-recursive `$ref` and the `.recurse` constraint tackles the rest.
+* **.eval** (synonyms: `.evaluate`) calls a Function with the value as the first (and only) argument and fails to validate if the Function throws anything.
+
+####Object Constraints
+* **.dependencies** schema or name requirements triggered by other keys, as `{ source:[ 'dependeny', 'keys' ], ...}`
+* **.unique** all properties or items must be unique values. Intelligently compares complex values for uniqueness.
+* **.key** (synonyms: `.keyTest`) test property key names against a schema.
+* **.children** (synonyms: `.child`, `.props`, `.properties`) explicitly declare child properties when reserved words are used as keys, or whenever you feel like it.
+* **.matchChildren** (synonyms: `.matchChild`) apply a schema to properties when their keys match a regular expression. Specify either as a `String` or a `RegExp`.
+* **.minKeys** (synonyms: `.minProps`, `.minProperties`) The minimum number of properties that must appear in an Object.
+* **.maxKeys** (synonyms: `.maxProps`, `.maxProperties`) The maximum number of properties that must appear in an Object.
+* **.keyCount** (synonyms: `.keys`, `.propCount`, `.propertyCount`) The exact number of properties that must appear in an Object.
+* **.keyFormat** requires that all property keys on this Object be of a format compatible with one of the [JSON Schema String formats](http://json-schema.org/latest/json-schema-validation.html#anchor107).
+
+####Array Constraints
+* **minVals** (synonyms: `.minValues`, `.minItems`) The minimum number of items that must appear in an Array.
+* **maxVals** (synonyms: `.maxValues`, `.maxItems`) The maximum number of items that must appear in an Array.
+* **valCount** (synonyms: `.vals`, `.values`, `.itemCount`, '.items')  The exact number of items that must appear in an Array.
+* **.sort** Require that items be an a particular order. This one doubles as a Transform; when Transforming, items are *forced* to be in a particular order. Sort specifications are [just like in MongoDB](http://docs.mongodb.org/manual/reference/operator/update/sort/#up._S_sort) except the path delimiter is slash instead of period.
+
+####Object and Array Constraints
+* **.exists** (synonyms: `.thereExists`) Requires that one (or more, see `.times`) items or properties on this Array or Object validate against one or more schema. Declare as either a schema or Array of schemata.
+* **.times** When used in the child schema of an `.exists` constraint, requires that the `.exists` constraint succeed the specified number of times.
+* **.all** (synonyms: `.forAll`, `.every`, `.forEvery`) Apply a schema to every item or property on this Array or Object.
+* **.extras** (synonyms: `.extra`) The guaranteed last option. If no other subschema applies to an item or property of this Array or Object, this subschema is applied.
+* **.sequence** an Array of schema which are applied to items of the input value sequentially. When `.sequence` is declared but neither `.all` nor `.extras` are, the input Array and schemata sequence must have equal length.
+
+####String Constraints
+* **.minLength** Minimum String length.
+* **.maxLength** Maximum String length.
+* **.length** (synonyms: `.len`) Exact String length.
+* **.match** (synonyms: `.regex`, `.regexp`) Validates only if a given regular expression matches the input String at least once. Declare as either a String or RegExp.
+* **.format** requires that the String be of a format compatible with one of the [JSON Schema String formats](http://json-schema.org/latest/json-schema-validation.html#anchor107)
+
+####Number Constraints
+* **.gt** (synonyms: `.greaterThan`, `.>`)
+* **.gte** (synonyms: `.greaterOrEqual`, `.>=`)
+* **.lt** (synonyms: `.lessThan`, `.<`)
+* **.lte** (synonyms: `.lessOrEqual`, `.<=`)
+* **.modulo** (synonyms: `.mod`, `.%`) Require a given modulo result, where `remainder = value % divisor` is expressed as `.modulo:[ divisor, remainder ]`.
+* **.multiple** Requires that the input be a round multiple of a number. Unlike using `.modulo` with a zero remainder, neither the input value nor specified coefficient are treated as integers.
+
+
+Transforms
+----------
+####Meta-Transforms
+
+####Universal Transforms
+
+####Object Transforms
+
+####Array Transforms
+
+####Object and Array Transforms
+
+####String Transforms
+
+####Number Transforms
 
 
 LICENSE
