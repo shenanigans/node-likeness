@@ -24,7 +24,7 @@ An alternate schema definition language and extensions to JSON Schema Draft 4.
  * [String Constraints](#string-constraints)
  * [Number Constraints](#number-constraints)
 
-**[Transform Constraints](transform-constraints)**
+**[Transform Constraints](#transform-constraints)**
  * [Meta-Transforms](#meta-transforms)
  * [Universal Transforms](#universal-transforms)
  * [Object Transforms](#object-transforms)
