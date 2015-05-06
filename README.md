@@ -446,7 +446,7 @@ When using `.or` or `.xor`, transforms are honored only on the schema chosen to 
 
 ####Accumulators
 Look up content from the source document to produce a generated value. Accumulators use absolute
-paths and are therefor not portable. Path traversal is parallelize whenever an Array is encountered,
+paths and are therefor not portable. Path traversal is parallelized whenever an Array is encountered,
 similar to MongoDB. As an example, in the following document, the path 'foo/bar/baz' selects four
 values: `[ 1, 2, 3, 4 ]`
 ```javascript
