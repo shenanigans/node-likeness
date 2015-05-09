@@ -316,11 +316,7 @@ Note that when compiling a schema with no `id`, `likeness` will pretend that the
 the phony url `http://json-schema.org/default#`.
 ```javascript
 var likeness = require ('likeness');
-var JSContext = likeness.helpers.JSContext;
-var fromJSONSchema = likeness.helpers.fromJSONSchema;
-var likeJSONSchema = likeness.helpers.likeJSONSChema;
-
-var context = new JSContext();
+var context = new likeness.helpers.JSContext();
 async.series ([
 
     function (callback) {
