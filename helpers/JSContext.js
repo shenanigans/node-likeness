@@ -75,7 +75,20 @@ module.exports = JSContext;
 @callback
     @argument/Error|undefined err
 */
-JSContext.prototype.submit = function (id, schema, callback, replacements) {
+JSContext.prototype.submit = function (/* id, schema, callback, replacements */) {
+    var id, schema, callback, replacements;
+    switch (arguments.length) {
+        case 2:
+            schema = arguments[0];
+            callback = arguments[1];
+            break;
+        default:
+            id = arguments[0];
+            schema = arguments[1];
+            callback = arguments[2];
+            replacePath = arguments[3];
+    }
+
     // walk to target namespace
     var path = url.parse (id);
     var pathHost = path.host;

@@ -330,9 +330,9 @@ async.series ([
     function (callback) {
         // you may pass id as the first argument.
         // if you also specified an `id` property, it is overridden
-        context.compile (schemaURL, schema, function (err, compiled) {
+        context.compile (schemaURL, schema, function (err, compiled, metaschema) {
             // `compiled` can be converted to likeness-format
-            fromJSONSchema (compiled, function (err, likeDef) {
+            fromJSONSchema (metaschema, compiled, function (err, likeDef) {
                 // now that we have a likeness-format schema document
                 // we can create a likeness
                 var like = new likeness (likeDef);
@@ -350,7 +350,7 @@ async.series ([
     function (callback) {
         // to simply prepare one schema for validation
         // use this helper method
-        likeness.helpers.likeJSONSChema (
+        likeness.likeJSONSChema (
             schema,
             function (err, like) {
                 try {

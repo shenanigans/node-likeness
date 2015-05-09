@@ -738,6 +738,26 @@ module.exports = Likeness;
 Likeness.errors = require ('./lib/errors');
 Likeness.helpers = require ('./helpers');
 
+var JSContext = require ('./helpers/JSContext');
+var fromJSONSchema = require ('./helpers/fromJSONSchema');
+
+function likeJSONSchema (schema, callback) {
+    var context = new JSContext();
+    context.compile (schema, function (err, compiled, meta) {
+        if (err) return callback (err);
+        fromJSONSchema (meta, compiled, function (err, likeDoc) {
+            if (err) return callback (err);
+            try {
+                var likeInstance = new Likeness (likeDoc);
+            } catch (err) {
+                return callback (err);
+            }
+            callback (undefined, likeInstance);
+        });
+    });
+}
+module.exports.likeJSONSchema = likeJSONSchema;
+
 Likeness.util = {
     validateFormat:     require ('./lib/Format').validate,
     TypeValidators:     require ('./lib/TypeValidators'),
