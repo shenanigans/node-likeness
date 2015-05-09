@@ -1,11 +1,12 @@
 likeness
 ========
-A JSON perturbence engine in [Node.js](http://nodejs.org/). Precompile JSON Schemata, validate and
+A JSON perturbance engine in [Node.js](http://nodejs.org/). Precompile JSON Schemata, validate and
 query documents, generate, compute, update and transform data, non-destructively and reproducibly.
 An alternate schema definition language and extensions to JSON Schema Draft 4.
 
 ####TOC
 **[Getting Started](#getting-started)**
+
 **[Examples](#examples)**
  * [Validations](#validations)
  * [Transforms](#transforms)
@@ -23,7 +24,7 @@ An alternate schema definition language and extensions to JSON Schema Draft 4.
  * [String Constraints](#string-constraints)
  * [Number Constraints](#number-constraints)
 
-**[Transform Constraints](transform-constraints)**
+**[Transform Constraints](#transform-constraints)**
  * [Meta-Transforms](#meta-transforms)
  * [Universal Transforms](#universal-transforms)
  * [Object Transforms](#object-transforms)
@@ -39,7 +40,7 @@ An alternate schema definition language and extensions to JSON Schema Draft 4.
 excited about it, please consider [giving me some money.](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=PN6C2AZTS2FP8&lc=US&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHosted)
 I could really use it.
 
-I am also interested in job opportunities: just [open an issue](https://github.com/shenanigans/node-likeness/issues/new)
+I am also interested in job opportunities; just [open an issue](https://github.com/shenanigans/node-likeness/issues/new)
 and I'll get back to you.
 
 
@@ -230,7 +231,7 @@ var likeMakeBudgetReport = new likeness ({
             },
         },
         expenses:       {
-            '.mean:         true
+            '.mean':         true
             '.fill':        {
                 '.fill':        'expenses',
                 '.group':       {
@@ -445,7 +446,7 @@ When using `.or` or `.xor`, transforms are honored only on the schema chosen to 
 
 ####Accumulators
 Look up content from the source document to produce a generated value. Accumulators use absolute
-paths and are therefor not portable. Path traversal is parallelize whenever an Array is encountered,
+paths and are therefor not portable. Path traversal is parallelized whenever an Array is encountered,
 similar to MongoDB. As an example, in the following document, the path 'foo/bar/baz' selects four
 values: `[ 1, 2, 3, 4 ]`
 ```javascript
