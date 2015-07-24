@@ -18,6 +18,7 @@ var STD_GEO             = require ('./JSPredefs/geo.json');
 var standardSchemata = {
     "json-schema.org":          {
         "/schema":                  STD_DRAFT_04,
+        "/default":                 STD_DRAFT_04,
         "/likeness":                STD_LIKENESS,
         "/likeness/transform":      STD_TRANSFORM,
         "/hyper-schema":            STD_DRAFT_04_HYPER,
@@ -31,6 +32,10 @@ var standardSchemata = {
         "/geo":                     STD_GEO
     }
 };
+var submissions = [];
+for (var host in standardSchemata)
+    for (var path in standardSchemata[host])
+        submissions.push ([ host+path, standardSchemata[host][path] ]);
 
 var DEFAULT_OPTIONS = {
     timeout:    3000,
@@ -66,6 +71,27 @@ function JSContext (options) {
 }
 module.exports = JSContext;
 
+JSContext.prototype.init = function (callback) {
+    if (this.initQueue) {
+        this.initQueue.push (callback);
+        return;
+    } else
+        this.initQueue = [ callback ];
+
+    var self = this;
+    async.each (submissions, function (job, callback) {
+        self.submit (job[0], job[1], function(){
+            callback();
+        })
+    }, function(){
+        self.initialized = true;
+        var queue = self.initQueue;
+        delete self.initQueue;
+        for (var i=0,j=queue.length; i<j; i++)
+            queue[i].call (this);
+    });
+};
+
 
 /**     @membger/Function submit
     Recursively scan a schema document for subschema and register each recognized subschema path.
@@ -75,18 +101,18 @@ module.exports = JSContext;
 @callback
     @argument/Error|undefined err
 */
-JSContext.prototype.submit = function (/* id, schema, callback, replacements */) {
-    var id, schema, callback, replacements;
+JSContext.prototype.submit = function (/* id, schema, callback */) {
+    var id, schema, callback;
     switch (arguments.length) {
         case 2:
             schema = arguments[0];
             callback = arguments[1];
+            id = schema.id || 'http://json-schema.org/default#';
             break;
         default:
-            id = arguments[0];
+            id = arguments[0] || 'http://json-schema.org/default#';
             schema = arguments[1];
             callback = arguments[2];
-            replacePath = arguments[3];
     }
 
     // walk to target namespace
@@ -108,7 +134,6 @@ JSContext.prototype.submit = function (/* id, schema, callback, replacements */)
             namespace = namespace[pathPath] = {};
 
     // resolve the metaschema
-    var self = this;
     var metaschemaPath = schema.$schema || "http://json-schema.org/schema";
     this.resolve (metaschemaPath, function (err, metaschema) {
         if (err) return callback (err);
@@ -120,6 +145,7 @@ JSContext.prototype.submit = function (/* id, schema, callback, replacements */)
 
             (function submitSubschema (path, level, parent) {
                 var localNamespace = namespace;
+
                 if (level.id) {
                     // shift to an alternate namespace
                     var newParent = url.parse (level.id);
@@ -161,7 +187,7 @@ JSContext.prototype.submit = function (/* id, schema, callback, replacements */)
         }
         namespace[hash] = schema;
         callback (undefined, metaschema);
-    }, replacements);
+    });
 };
 
 
@@ -368,14 +394,15 @@ JSContext.prototype.compile = function (parent, id, schema, callback, replacemen
     }
     if (!replacements) replacements = {};
 
+    var self = this;
+    if (!this.initialized)
+        return this.init (function(){ self.compile (parent, id, schema, callback, replacements); });
+
     if (!id) {
         if (schema.id)
             id = schema.id;
         else
             id = 'http://json-schema.org/default#';
-            // return process.nextTick (function(){ callback (new Error (
-            //     'cannot compile a schema without knowing what path it represents'
-            // )); });
     }
     var idInfo = url.parse (id);
     if (!idInfo.hash)
@@ -386,7 +413,6 @@ JSContext.prototype.compile = function (parent, id, schema, callback, replacemen
     if (typeof parent == 'string')
         parent = url.parse (parent);
 
-    var self = this;
     this.submit (parent.href, schema, function (err, metaschema) {
         if (err) return callback (err);
         function compileLevel (path, level, callback) {

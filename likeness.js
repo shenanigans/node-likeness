@@ -15,6 +15,7 @@ var Validate = require ('./lib/Validate');
 var Transform = require ('./lib/Transform');
 var Accumulate = require ('./lib/Accumulate');
 var getTypeStr = require ('./lib/GetTypeStr');
+var Helpers = require ('./helpers');
 
 /**     @class Configuration
 
@@ -703,6 +704,11 @@ Likeness.prototype.export = function(){
     return output;
 };
 
+Likeness.prototype.exportJSONSchema = function(){
+    var likeDoc = this.export();
+    return Helpers.toJSONSchema (likeDoc);
+};
+
 Likeness.prototype.validate = Validate;
 Likeness.prototype.transform = Transform;
 Likeness.prototype.accumulate = Accumulate;
@@ -736,7 +742,7 @@ Likeness.Validator = Validator;
 Likeness.getTypeStr = getTypeStr;
 module.exports = Likeness;
 Likeness.errors = require ('./lib/errors');
-Likeness.helpers = require ('./helpers');
+Likeness.helpers = Helpers;
 
 var JSContext = require ('./helpers/JSContext');
 var fromJSONSchema = require ('./helpers/fromJSONSchema');

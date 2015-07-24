@@ -87,7 +87,6 @@ var ARR_CONVERSIONS = {
 };
 
 var SKIP_STEPS = { };
-// for (var key in SCHEMA_CONVERSIONS) SKIP_STEPS[key] = true;
 for (var key in MAP_CONVERSIONS) SKIP_STEPS[key] = true;
 for (var key in ARR_CONVERSIONS) SKIP_STEPS[key] = true;
 
@@ -108,6 +107,7 @@ function fromJSONSchema (metaschema, schema, callback, context, path) {
     var exMin = false;
     async.each (keys, function (key, callback) {
         var subschema = schema[key];
+
         if (Object.hasOwnProperty.call (SIMPLE_CONVERSIONS, key)) {
             output[SIMPLE_CONVERSIONS[key]] = subschema;
             return callback();
@@ -214,6 +214,8 @@ function fromJSONSchema (metaschema, schema, callback, context, path) {
             if (typeof subschema == 'boolean') {
                 if (!subschema)
                     output['.adHoc'] = false;
+                else
+                    output['.adHoc'] = true;
                 return callback();
             } else
                 return fromJSONSchema (metaschema, subschema, function (err, sublikeness) {
@@ -336,3 +338,7 @@ function fromJSONSchema (metaschema, schema, callback, context, path) {
 }
 
 module.exports = fromJSONSchema;
+module.exports.SIMPLE_CONVERSIONS   = SIMPLE_CONVERSIONS;
+module.exports.SCHEMA_CONVERSIONS   = SCHEMA_CONVERSIONS;
+module.exports.MAP_CONVERSIONS      = MAP_CONVERSIONS;
+module.exports.ARR_CONVERSIONS      = ARR_CONVERSIONS;

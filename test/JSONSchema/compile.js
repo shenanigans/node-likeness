@@ -22,7 +22,7 @@ function testCompile (id, doc, testDoc, callback) {
             } catch (err) {
                 console.log (err);
                 console.log (compiled);
-                return callback (err);
+                return callback (err instanceof Error ? err : new Error (err));
             }
             callback();
         });
