@@ -4,7 +4,7 @@ A JSON perturbance engine in [Node.js](http://nodejs.org/). Precompile JSON Sche
 query documents, generate, compute, update and transform data, non-destructively and reproducibly.
 An alternate schema definition language and extensions to JSON Schema Draft 4.
 
-####TOC
+####Table of Contents
 **[Getting Started](#getting-started)**
 
 **[Examples](#examples)**

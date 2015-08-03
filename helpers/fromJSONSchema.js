@@ -60,7 +60,8 @@ var SIMPLE_CONVERSIONS = {
     'getDay':               '.getDay',
     'getDayNum':            '.getDayNum',
     'getDayName':           '.getDayName',
-    'sort':                 '.sort'
+    'sort':                 '.sort',
+    'invalid':              '.invalid'
 };
 
 var SCHEMA_CONVERSIONS = {
