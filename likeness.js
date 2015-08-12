@@ -17,16 +17,16 @@ var Accumulate = require ('./lib/Accumulate');
 var getTypeStr = require ('./lib/GetTypeStr');
 var Helpers = require ('./helpers');
 
-/**     @class Configuration
+/**     @submodule/class Configuration
 
 @String #title
     A non-functional constraint provided to support the JSON Schema specification.
 @String #description
     A non-functional constraint provided to support the JSON Schema specification.
-@Array[likeness] #anyOf
+@Array<likeness> #anyOf
     Validate if any one of an Array of Likenesses validates. When transforming, the first Likeness
     to complete the transform successfully is used.
-@Array[likeness] #oneOf
+@Array<likeness> #oneOf
      * *synonyms:* `exactlyOne`
 
     Validate if one and **only** one of an Array of Likenesses validates. When transforming, every
@@ -109,34 +109,26 @@ var Helpers = require ('./helpers');
 
     Validates if the string matches the provided regular expression.
 @Function #eval
-    Simply test document values with a [Function]() call. If the [async](Configuration#async)
-    constraint is configured, a callback will be passed to the evaluation function and the return
-    value will be ignored.
+    Simply test document values with a [Function]() call.
     @argument document
-    @callback
-        @argument/Error err
-            @optional
-            Invalidates the document and packs this Error into the returned [ValidationError](
-            likeness.ValidationError)
-        @returns
     @returns isValid
-        In synchronous validation mode, return a truthy value to validate the document.
+        Return a truthy value to validate the document.
 @Boolean #async
     Indicate that all functional constraints on this Likeness are dedicated async Functions. Forces
     the entire ancestor chain to use asynchronous execution mode exclusively.
-@Array[likeness] #exists
+@Array<likeness> #exists
      * *applies to type:* `object`, `array`
      * *synonyms:* `thereExists`
 
     For each element in this constraint, at least one child or element of the document must
-    validate. If the element likeness has a [times constraint](.Configuration#times), more than one
+    validate. If the element likeness has a [times constraint](:Configuration#times), more than one
     validating child or element my be required to validate the `exists` constraint.
 @likeness #all
      * *applies to type:* `object`, `array`
      * *synonyms:* `forAll`, `every`, `forEvery`
 
     Every child or element of the document my by validated by this Likeness.
-@likess #extras
+@likeness #extras
      * *applies to type:* `object`, `array`
      * *synonyms:* `extra`
 
@@ -146,19 +138,19 @@ var Helpers = require ('./helpers');
     Provide a document which all valid documents must replicate exactly.
 @Array #anyValue
     Any Array of possible values. Validating documents must exactly match one of these values.
-@Array[likeness] #sequence
+@Array<likeness> #sequence
      * *applies to type:* `array`
 
     Validations and transforms for each element of the document are handled by their sister elements
     in this constraint. If the sequence runs out of Likenesses before the document, validations and
-    transforms will fail unless an [extras](.Coonfiguration#extras) constraint is available.
+    transforms will fail unless an [extras](:Configuration#extras) constraint is available.
 @Number|String #recurse
     Recursive reference, as either a Number of levels or unix-like backref String composed of any
     number of concatenated `"../"` sequences. Replaces the Likeness in this position with an
     ancestral likeness.
 @Function #transform
     Manually transform the document with a Function. Affected by the [async property]
-    (.Configuration#async).
+    (:Configuration#async).
     @argument document
     @callback
         @argument/Error|undefined err
@@ -171,44 +163,43 @@ var Helpers = require ('./helpers');
         In synchronous transform mode, return the transformed value, or `undefined` to drop the
         document from its parent (if any).
 */
-/**     @class .Configuration.Object
-    @super Configuration
+/**     @class :Configuration:Object
+    @super :Configuration
 @Number #min
     The minimum number of defined keys on the Object.
 @Number #max
     The maximum number of defined keys on the Object.
 */
-/**     @class .Configuration.Array
-    @super Configuration
-@Number #min
+/**     @class :Configuration:Array
+    @super :Configuration
+@member/Number min
     The minimum number of defined values in the Array.
-@Number #max
+@member/Number max
     The maximum number of defined values in the Array.
-@.Configuration all
-@.Configuration|Array[.Configuration]
-@Array[.Configuration] sequence
+@member/:Configuration all
+@member/Array<:Configuration> sequence
 */
-/**     @class .Configuration.String
-    @super Configuration
+/**     @class :Configuration:String
+    @super :Configuration
 @Number #min
     The minimum length of the String.
 @Number #max
     The maximum length of the String.
 
 */
-/**     @class .Configuration.Number
-    @super Configuration
-@Number #min
+/**     @class :Configuration:Number
+    @super :Configuration
+@member/Number min
     The minimum value of the Number.
-@Number #exclusiveMin
+@member/Number exclusiveMin
     The minimum value of the Number, exclusive.
-@Number #max
+@member/Number max
     The maximum value of the Number.
-@Number #exclusiveMax
+@member/Number exclusiveMax
     The maximum value of the Number, exclusive.
 */
-/**     @class .Configuration.Boolean
-    @super Configuration
+/**     @class :Configuration:Boolean
+    @super :Configuration
 */
 
 var SPECIAL_KEYS = {

@@ -42,7 +42,7 @@ var DEFAULT_OPTIONS = {
     maxDepth:   10
 };
 
-/**     @class likeness.helpers.JSContext
+/**     @module/class likeness:helpers:JSContext
     @root
 
 @Object #universeCache
@@ -197,7 +197,7 @@ JSContext.prototype.submit = function (/* id, schema, callback */) {
 @callback
     @argument/Error|undefined err
     @argument/undefined|Object schema
-@argument/Array[String] replacements
+@argument/Array<String> replacements
     @optional
     @development
 */
