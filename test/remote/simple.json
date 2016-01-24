@@ -1,0 +1,13 @@
+{
+    "type":     "object",
+    "properties":   {
+        "able":         {
+            "type":         "number"
+        },
+        "baker":        {
+            "type":         "string"
+        }
+    },
+    "additionalProperties": false,
+    "required": [ "able", "baker" ]
+}

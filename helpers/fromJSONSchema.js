@@ -93,15 +93,27 @@ for (var key in ARR_CONVERSIONS) SKIP_STEPS[key] = true;
 
 
 /**     @property/Function fromJSONSchema
-    Convert a JSON Schema spec to a likeness schema object. Does *not* create a Likeness instance.
+    Convert a JSON Schema spec to a likeness schema object. Creates an Object, not a Likeness
+    instance. Will only process $ref statements that target a parent to the path of the $ref
+    statement.
+@argument/Object metaschema
+    The $meta schema for the document to be converted.
 @argument/Object schema
-    JSON Schema document
+    JSON Schema document to convert.
+@callback
+    @argument/Error|undefined err
+    @argument/Object compiled
+    @returns
+@argument/String path
+    @optional
+    @development
+    Passed when recursing. The path traversed up to this point. Passed around entirely to support
+    $ref and `.recurse`.
 */
-function fromJSONSchema (metaschema, schema, callback, context, path) {
+function fromJSONSchema (metaschema, schema, callback, path) {
     var output = { '.adHoc':true };
     if (path) output['.optional'] = true;
     else path = '#';
-    context = context || schema;
 
     var keys = Object.keys (schema);
     var exMax = false;
@@ -124,7 +136,7 @@ function fromJSONSchema (metaschema, schema, callback, context, path) {
                 if (err) return callback (err);
                 output[SCHEMA_CONVERSIONS[key]] = sublikeness;
                 callback();
-            }, context, path);
+            }, path);
         }
 
         if (Object.hasOwnProperty.call (MAP_CONVERSIONS, key)) {
@@ -139,7 +151,7 @@ function fromJSONSchema (metaschema, schema, callback, context, path) {
                     if (err) return callback (err);
                     converted[subkey] = sublikeness;
                     callback();
-                }, context, path+'/'+key+'/'+subkey);
+                }, path+'/'+key+'/'+subkey);
             }, function (err) {
                 if (err) return callback (err);
                 output[MAP_CONVERSIONS[key]] = converted;
@@ -154,7 +166,7 @@ function fromJSONSchema (metaschema, schema, callback, context, path) {
                     if (err) return callback (err);
                     converted[subI] = sublikeness;
                     callback();
-                }, context, path);
+                }, path);
             }, function (err) {
                 if (err) return callback (err);
                 output[ARR_CONVERSIONS[key]] = converted;
@@ -171,7 +183,7 @@ function fromJSONSchema (metaschema, schema, callback, context, path) {
                         if (err) return callback (err);
                         converted[subI] = sublikeness;
                         callback();
-                    }, context, path + '/items');
+                    }, path + '/items');
                 }, function (err) {
                     if (err) return callback (err);
                     output['.sequence'] = converted;
@@ -184,7 +196,7 @@ function fromJSONSchema (metaschema, schema, callback, context, path) {
                 if (err) return callback (err);
                 output['.all'] = sublikeness;
                 callback();
-            }, context, path + '/items');
+            }, path + '/items');
         }
 
         if (key == '$ref') {
@@ -223,7 +235,7 @@ function fromJSONSchema (metaschema, schema, callback, context, path) {
                     if (err) return callback (err);
                     output['.extras'] = sublikeness;
                     callback();
-                }, context, path);
+                }, path);
         }
 
         if (key == 'dependencies') {
@@ -242,7 +254,7 @@ function fromJSONSchema (metaschema, schema, callback, context, path) {
                     if (err) return callback (err);
                     converted[subkey] = sublikeness;
                     callback();
-                }, context, path+'/'+key+'/'+subkey);
+                }, path+'/'+key+'/'+subkey);
             }, function (err) {
                 if (err) return callback (err);
                 output['.dependencies'] = converted;
@@ -261,7 +273,7 @@ function fromJSONSchema (metaschema, schema, callback, context, path) {
                     if (err) return callback (err);
                     output[key] = (subsublikeness);
                     callback();
-                }, context, path);
+                }, path);
 
             output[key] = [];
             async.times (subschema.length, function (subsubschemaI, callback) {
@@ -274,7 +286,7 @@ function fromJSONSchema (metaschema, schema, callback, context, path) {
                     if (err) return callback (err);
                     output[key][subsubschemaI] = subsublikeness;
                     callback();
-                }, context, path);
+                }, path);
             }, callback);
             return;
         }

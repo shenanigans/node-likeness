@@ -1,4 +1,15 @@
 
+/**     @property/Function likeness.helpers.mergeJSONSchema
+    Produce one JSON Schema document from two that represents either an inheritence merge or the
+    result of applying both of two schemata to the target. The Boolean flag argument `asInheritence`\
+    determines which operation to perform.
+@argument/Object metaschema
+@argument/Object able
+@argument/Object baker
+@argument/Boolean asInheritence
+    When true, conflicting constraints in `baker` will override those in `able`. When false,
+    conflicting constraints apply together. This may produce a schema which cannot be satisfied.
+*/
 function merge (metaschema, able, baker, asInheritence) {
     if (baker instanceof Array) {
         var output = [];

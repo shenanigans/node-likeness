@@ -1,0 +1,22 @@
+{
+    "type":     "object",
+    "properties":   {
+        "able":         {
+            "type":         "number"
+        },
+        "baker":        {
+            "$ref":         "#/localRef"
+        }
+    },
+    "additionalProperties": false,
+    "required": [ "able", "baker" ],
+    "localRef": {
+        "type":      "object",
+        "properties": {
+            "able":     {
+                "type":     "string"
+            }
+        },
+        "required": [ "able" ]
+    }
+}

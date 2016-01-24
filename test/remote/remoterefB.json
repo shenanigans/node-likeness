@@ -1,0 +1,11 @@
+{
+    "localRef": {
+        "type":      "object",
+        "properties": {
+            "able":     {
+                "type":     "string"
+            }
+        },
+        "required": [ "able" ]
+    }
+}

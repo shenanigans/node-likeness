@@ -1,12 +1,9 @@
 
 /**     @module/class likeness
-
+    Encapsulates a schema document and validates or transforms other documents.
 @argument schema
-@Boolean #isAsync
 @Boolean #hasTransform
 @Boolean #noTransform
-    If True, this Likeness instance may not be used for transforms. Currently this exists entirely
-    to
 */
 
 var async = require ('async');
@@ -17,7 +14,7 @@ var Accumulate = require ('./lib/Accumulate');
 var getTypeStr = require ('./lib/GetTypeStr');
 var Helpers = require ('./helpers');
 
-/**     @submodule/class Configuration
+/**     @submodule/class Schema
 
 @String #title
     A non-functional constraint provided to support the JSON Schema specification.
@@ -121,7 +118,7 @@ var Helpers = require ('./helpers');
      * *synonyms:* `thereExists`
 
     For each element in this constraint, at least one child or element of the document must
-    validate. If the element likeness has a [times constraint](:Configuration#times), more than one
+    validate. If the element likeness has a [times constraint](:Schema#times), more than one
     validating child or element my be required to validate the `exists` constraint.
 @likeness #all
      * *applies to type:* `object`, `array`
@@ -143,14 +140,14 @@ var Helpers = require ('./helpers');
 
     Validations and transforms for each element of the document are handled by their sister elements
     in this constraint. If the sequence runs out of Likenesses before the document, validations and
-    transforms will fail unless an [extras](:Configuration#extras) constraint is available.
+    transforms will fail unless an [extras](:Schema#extras) constraint is available.
 @Number|String #recurse
     Recursive reference, as either a Number of levels or unix-like backref String composed of any
     number of concatenated `"../"` sequences. Replaces the Likeness in this position with an
     ancestral likeness.
 @Function #transform
     Manually transform the document with a Function. Affected by the [async property]
-    (:Configuration#async).
+    (:Schema#async).
     @argument document
     @callback
         @argument/Error|undefined err
@@ -163,32 +160,32 @@ var Helpers = require ('./helpers');
         In synchronous transform mode, return the transformed value, or `undefined` to drop the
         document from its parent (if any).
 */
-/**     @class :Configuration:Object
-    @super :Configuration
+/**     @class :Schema:Object
+    @super :Schema
 @Number #min
     The minimum number of defined keys on the Object.
 @Number #max
     The maximum number of defined keys on the Object.
 */
-/**     @class :Configuration:Array
-    @super :Configuration
+/**     @class :Schema:Array
+    @super :Schema
 @member/Number min
     The minimum number of defined values in the Array.
 @member/Number max
     The maximum number of defined values in the Array.
-@member/:Configuration all
-@member/Array<:Configuration> sequence
+@member/:Schema all
+@member/Array<:Schema> sequence
 */
-/**     @class :Configuration:String
-    @super :Configuration
+/**     @class :Schema:String
+    @super :Schema
 @Number #min
     The minimum length of the String.
 @Number #max
     The maximum length of the String.
 
 */
-/**     @class :Configuration:Number
-    @super :Configuration
+/**     @class :Schema:Number
+    @super :Schema
 @member/Number min
     The minimum value of the Number.
 @member/Number exclusiveMin
@@ -198,8 +195,8 @@ var Helpers = require ('./helpers');
 @member/Number exclusiveMax
     The maximum value of the Number, exclusive.
 */
-/**     @class :Configuration:Boolean
-    @super :Configuration
+/**     @class :Schema:Boolean
+    @super :Schema
 */
 
 var SPECIAL_KEYS = {
@@ -704,40 +701,23 @@ Likeness.prototype.validate = Validate;
 Likeness.prototype.transform = Transform;
 Likeness.prototype.accumulate = Accumulate;
 
-
-/**     @property/Function Validator
-    Return a Function that simply validates on a schema, as fast as possible, returning a Boolean.
-    If the schema is asynchronous, a callback Function is expected. Synchronous schemata do *not*
-    honor callbacks.
-@returns/Function
-*/
-function Validator (schema) {
-    var like = new Likeness (schema);
-    return function (doc, callback) {
-        if (callback && this.isAsync) {
-            like.validate (doc, function (err) {
-                callback (!Boolean (err));
-            });
-            return;
-        }
-        try {
-            like.validate (doc);
-            return true;
-        } catch (err) {
-            return false;
-        }
-    };
-}
-Likeness.Validator = Validator;
-
 Likeness.getTypeStr = getTypeStr;
 module.exports = Likeness;
-Likeness.errors = require ('./lib/errors');
 Likeness.helpers = Helpers;
 
 var JSContext = require ('./helpers/JSContext');
 var fromJSONSchema = require ('./helpers/fromJSONSchema');
 
+/**     @property/Function likeJSONSchema
+    Simply produce a validator/transformer from a JSON Schema document, without mucking about with
+    the complexities of a [Context](.helpers.JSContext) or producing a metaschema document to pass
+    to [fromJSONSchema](.helpers.fromJSONSchema). This is the easy method of creating schema
+    validators.
+@argument/Object schema
+@callback
+    @argument/Error|undefined err
+    @argument/
+*/
 function likeJSONSchema (schema, callback) {
     var context = new JSContext();
     context.compile (schema, function (err, compiled, meta) {

@@ -1,0 +1,12 @@
+{
+    "localRef": {
+        "type":      "object",
+        "properties": {
+            "charlie":   {
+                "$ref":     "http://127.0.0.1:9999/refloopA.json#/localRef"
+            }
+        },
+        "additionalProperties": false,
+        "required": [ "charlie" ]
+    }
+}

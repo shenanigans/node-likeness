@@ -18,7 +18,6 @@ var STD_GEO             = require ('./JSPredefs/geo.json');
 var standardSchemata = {
     "json-schema.org":          {
         "/schema":                  STD_DRAFT_04,
-        "/default":                 STD_DRAFT_04,
         "/likeness":                STD_LIKENESS,
         "/likeness/transform":      STD_TRANSFORM,
         "/hyper-schema":            STD_DRAFT_04_HYPER,
@@ -42,15 +41,32 @@ var DEFAULT_OPTIONS = {
     maxDepth:   10
 };
 
-/**     @module/class likeness:helpers:JSContext
-    @root
+/**     @module/class likeness.helpers.JSContext
+    A caching context for prefetching $ref statements. Fetches remote schemata only once per
+    instance of `JSContext`. May be used to register a schema on a url whether or not it exists
+    there on the interwebs, then compile schemata that reference that url.
 
+    There are two outer surfaces to this interface: Use [compile](#compile) to prebuild a JSON
+    Schema document before creating a [validator/transformer](likeness.fromJSONSchema) or use
+    [resolveCompiled](#resolveCompiled) to fetch a compiled JSON Schema document.
+
+    **warning** Do not ask a JSContext to process multiple jobs at once if any $ref statements are
+    present or could conceivably be present.
+@argument/json options
+    @optional
+    @String (options#timeout
+        The maximum total time, in milliseconds, to spend chasing $ref statements across the network
+        before declaring a timeout error.
+    @String (options#maxDepth
+        The maximum depth of $ref statements to traverse  follow
 @Object #universeCache
     This multi-layer cache is organized as `{ "hostName.com":{ "/path":{ "#hash":{
     $schema:"http://json-schema.org ...`
 @Object #queues
     URLs (without hash portion) with concurrent active requests mapped to Arrays of callbacks. Used
     to prevent multiple network requests to the same URL.
+@Array<Function> #initQueue
+    The first compile job must wait for the preset metaschema to be [submitted](#submit).
 */
 function JSContext (options) {
     options = options || {};
@@ -71,6 +87,13 @@ function JSContext (options) {
 }
 module.exports = JSContext;
 
+
+/**     @member/Function init
+    @development
+    Not called directly. [Submits](#submit) the preset metaschema documents. [Compile](#compile)
+    tasks that come in while the callbacks nextTick will be stacked onto [initQueue](#initQueue).
+@callback
+*/
 JSContext.prototype.init = function (callback) {
     if (this.initQueue) {
         this.initQueue.push (callback);
@@ -95,11 +118,16 @@ JSContext.prototype.init = function (callback) {
 
 /**     @membger/Function submit
     Recursively scan a schema document for subschema and register each recognized subschema path.
+    This is strictly necessary due to the crazy whopping lies you can tell with the `id` key.
 @argument/String id
     @optional
+    The url where this schema is published. All unnamed schemata are mounted as
+    "http://json-schema.org/default".
 @argument/Object schema
+    The schema document to submit to cache.
 @callback
     @argument/Error|undefined err
+        If a $ref statement cannot be resolved, an Error will be passed down.
 */
 JSContext.prototype.submit = function (/* id, schema, callback */) {
     var id, schema, callback;
@@ -193,24 +221,17 @@ JSContext.prototype.submit = function (/* id, schema, callback */) {
 
 /**     @member/Function resolve
     Acquire a schema for a local or remote reference.
+@argument/url:Location parent
 @argument/String ref
 @callback
     @argument/Error|undefined err
     @argument/undefined|Object schema
-@argument/Array<String> replacements
-    @optional
-    @development
 */
-JSContext.prototype.resolve = function (parent, ref, callback, replacements) {
+JSContext.prototype.resolve = function (parent, ref, callback) {
     if (arguments.length == 2) {
         callback = ref;
         ref = parent;
-        parent = replacements = undefined;
-    } else if (arguments.length == 3 && typeof ref == 'function') {
-        replacements = callback;
-        callback = ref;
-        ref = parent;
-        parent = undefined;
+        parent = {};
     }
 
     var self = this;
@@ -239,29 +260,9 @@ JSContext.prototype.resolve = function (parent, ref, callback, replacements) {
 
     // cycle detection
     var canonicalURL = pathHost + pathPath + hash;
-    if (!replacements)
-        replacements = {};
-    else {
-        // you can easily build a malicious server to defeat cycle detection
-        // chain depth limiting
-        if (Object.keys (replacements).length >= this.options.maxDepth)
-            return process.nextTick (function(){ callback (new Error (
-                'maximum resolution depth exceeded'
-            )); });
-
-        var refPath = url.parse (ref);
-        var fullRef =
-            ( parent.protocol || 'https:' ) + '//'
-          + ( refPath.host || parent.host )
-          + ( refPath.path || parent.path )
-          + refPath.hash
-          ;
-        replacements[fullRef] = parent.hash || '#';
-    }
-
     // any chance it's already been resolved?
     if (Object.hasOwnProperty.call (namespace, hash))
-        return process.nextTick (function(){ callback (undefined, namespace[hash], replacements); });
+        return process.nextTick (function(){ callback (undefined, namespace[hash]); });
 
     if (!pathHost && !pathPath) // local references won't get any more resolvable
         return process.nextTick (function(){ callback (new Error (
@@ -278,9 +279,15 @@ JSContext.prototype.resolve = function (parent, ref, callback, replacements) {
     // begin a new request
     this.queues[canonicalURL] = [ callback ];
     var reserveStack = new Error().stack;
+    var basePath =
+        ( path.protocol || ( ( parent && parent.protocol ) ? parent.protocol : 'https:' ) )
+      + '//'
+      + pathHost
+      + pathPath
+      ;
     needle.get (
-        (path.protocol || 'https:') + '//' + canonicalURL,
-        { timeout:this.options.timeout },
+        basePath,
+        { timeout:this.options.timeout, parse:'json' },
         function (needleErr, response) {
             if (needleErr) {
                 // flush queue with error
@@ -297,20 +304,8 @@ JSContext.prototype.resolve = function (parent, ref, callback, replacements) {
             //         'failed to resolve a schema from the remote server - ' + canonicalURL
             //     ));
 
-            // regardless of content-type, attempt to treat the response as JSON Schema
-            if (response.body instanceof Buffer || typeof response.body == 'string') {
-                try {
-                    response.body = JSON.parse (response.body);
-                } catch (err) {
-                    return callback (new Error (
-                        'received invalid schema document from ' + canonicalURL
-                      + ' ('+pathHost+')  ('+pathPath+')'
-                    ));
-                }
-            }
-
             // submit the entire reply to cache
-            self.submit ('http://'+canonicalURL, response.body, function (err) {
+            self.submit (basePath, response.body, function (err) {
                 if (err) {
                     // flush the queue
                     var queue = self.queues[canonicalURL];
@@ -330,21 +325,42 @@ JSContext.prototype.resolve = function (parent, ref, callback, replacements) {
                 var queue = self.queues[canonicalURL];
                 delete self.queues[canonicalURL];
                 for (var i=0,j=queue.length; i<j; i++)
-                    queue[i] (err, result, replacements);
-            }, replacements);
+                    queue[i] (err, result);
+            });
         }
     );
 };
 
 
-/**     @member/Function compile
-    Resolve and recursively scan a schema, resolving all non-recursive references.
+/**     @member/Function resolveCompiled
+    Resolve and scan a schema, resolving all non-recursive references by recursing into
+    `resolveCompiled` again.
+@argument/String mount
+    @optional
+    @development
+    When calling recursively as part of compiling a parent document, the path in the compiled
+    document where this fragment will be placed is passed. It is updated and passed to further
+    compilation levels. It is used to updated the `replacements` map, which permits the compilation
+    of recursive structures.
+@argument/url:Location parent
+    @optional
+    @development
+    When calling recursively as part of compiling a parent document, the url of the parent context
+    for this call to `resolveCompiled` is passed. If `ref` is absolute, it is `ref` without the hash
+    portion. If `ref` is local it is the url to which `ref` is local.
 @argument/String ref
+    The local or absolute path of a schema to prefetch in precompiled form.
 @callback
     @argument/Error|undefined err
-    @argument/undefined|Object compilation
+    @argument/undefined|Object compiledSchema
+    @returns
+@argument/Object replacements
+    @optional
+    @development
+    A map of `ref` paths that have already been resolved to the local path which a $ref statement
+    may now use.
 */
-JSContext.prototype.resolveCompiled = function (parent, ref, callback, replacements) {
+JSContext.prototype.resolveCompiled = function (mount, parent, ref, callback, replacements) {
     if (arguments.length == 2) {
         callback = ref;
         ref = parent;
@@ -355,7 +371,7 @@ JSContext.prototype.resolveCompiled = function (parent, ref, callback, replaceme
         replacements = {};
 
     var self = this;
-    this.resolve (parent, ref, function (err, schema, replacements) {
+    this.resolve (parent, ref, function (err, schema) {
         if (err) return callback (err);
 
         // ref to id
@@ -364,39 +380,58 @@ JSContext.prototype.resolveCompiled = function (parent, ref, callback, replaceme
             ( ( ref.protocol || parent.protocol || 'https:' ) + '//' )
           + ( ref.host || parent.host )
           + ( ref.path || parent.path )
-          + ( ref.hash || parent.hash || '#' )
+          // + ( ref.hash || parent.hash || '#' )
           ;
-        self.compile (parent, compileID, schema, callback, replacements);
-    }, replacements);
+        self.compile (mount, parent, compileID, schema, callback, replacements);
+    });
 };
 
 
 /**     @member/Function compile
-    Resolve and recursively scan a schema, resolving all non-recursive references.
-@argument/String ref
+    Recursively scan a schema document, prefetching all non-recursive references.
+@argument/String mount
+    @optional
+    @development
+@argument/url:Location parent
+    @optional
+    @development
+@argument/String id
+    @optional
+@argument/Object schema
+    The schema document to compile.
 @callback
     @argument/Error|undefined err
     @argument/undefined|Object compilation
+    @returns
+@argument/Object replacements
 */
 var ASS = {};
 var RAW_KEYS = { inject:true, rename:true, default:true, sort:true };
-JSContext.prototype.compile = function (parent, id, schema, callback, replacements) {
+JSContext.prototype.compile = function (mount, parent, id, schema, callback, replacements) {
     if (arguments.length == 2) {
-        schema = parent;
-        callback = id;
+        schema = arguments[0];
+        callback = arguments[1];
         parent = id = undefined;
         replacements = {};
+        mount = '#';
     } else if (arguments.length == 3) {
-        callback = schema;
-        schema = id;
-        id = parent;
+        callback = arguments[2];
+        schema = arguments[1];
+        id = arguments[0];
         parent = undefined;
+        mount = '#';
     }
     if (!replacements) replacements = {};
 
+    // chain depth limiting
+    if (Object.keys (replacements).length >= this.options.maxDepth)
+        return process.nextTick (function(){ callback (new Error (
+            'maximum resolution depth exceeded'
+        )); });
+
     var self = this;
     if (!this.initialized)
-        return this.init (function(){ self.compile (parent, id, schema, callback, replacements); });
+        return this.init (function(){ self.compile (mount, parent, id, schema, callback, replacements); });
 
     if (!id) {
         if (schema.id)
@@ -489,20 +524,18 @@ JSContext.prototype.compile = function (parent, id, schema, callback, replacemen
                 isObj = true;
 
                 // reference?
-
                 if (
                     level
                  && typeof level == 'object'
                  && Object.hasOwnProperty.call (level, '$ref')
                 ) {
-                    // is it a recursive reference?
                     var refPath = url.parse (level.$ref);
                     var parentHash = parent.hash || '#';
                     var fullRef =
-                        ( parent.protocol || 'https:' ) + '//'
+                        ( refPath.protocol || parent.protocol || 'https:' ) + '//'
                       + ( refPath.host || parent.host )
                       + ( refPath.path || parent.path )
-                      + refPath.hash
+                      + ( refPath.hash || '' )
                       ;
 
                     if (Object.hasOwnProperty.call (replacements, fullRef)) {
@@ -510,12 +543,16 @@ JSContext.prototype.compile = function (parent, id, schema, callback, replacemen
                             callback (undefined, { $ref:replacements[fullRef] });
                         });
                     }
+                    replacements[fullRef] = path;
 
+                    // is it a recursive reference?
+                    var pseudoParent;
                     var replacePath =
                         ( ( parent.protocol || 'https:' ) + '//' )
                       + parent.host
                       + parent.path
-                      + parentHash
+                      // + parentHash
+                      + refPath.hash
                       ;
                     if (
                         ( !refPath.host || parent && refPath.host == parent.host )
@@ -532,30 +569,38 @@ JSContext.prototype.compile = function (parent, id, schema, callback, replacemen
                              || parentHash.slice (0, refPath.hash.length) == refPath.hash
                          )
                         ) { // it's recursive!
-                            // if (Object.hasOwnProperty.call (replacements, level.$ref)
+                            // if (Object.hasOwnProperty.call (replacements, level.$ref))
                             var idHash = idInfo.hash || '#';
                             var modifiedPath = refPath.href.replace (idHash, replacePath);
                             modifiedPath = replacements[fullRef] = url.parse (modifiedPath).hash;
                             return callback (undefined, { $ref:modifiedPath });
                         }
+                        pseudoParent = {
+                            protocol:   parent.protocol || refPath.protocol || 'https:',
+                            host:       parent.host || refPath.host,
+                            path:       parent.path || refPath.path,
+                            hash:       parent.hash ? (parent.hash + path.slice (1)) : path
+                        };
+                    } else {
+                        pseudoParent = {
+                            protocol:   refPath.protocol || parent.protocol || 'https:',
+                            host:       refPath.host,
+                            path:       refPath.path,
+                            hash:       '#'
+                        };
                     }
 
                     // resolve reference
-                    var pseudoParent = {
-                        host:       parent.host || refPath.host,
-                        path:       parent.path || refPath.path,
-                        hash:       parent.hash ? (parent.hash + path.slice (1)) : path
-                    };
                     if (pseudoParent.path[0] != '/')
                         pseudoParent.path = '/' + pseudoParent.path;
                     pseudoParent.href =
-                        (refPath.protocol || 'https:')
+                        pseudoParent.protocol
                       + '//'
                       + pseudoParent.host
                       + pseudoParent.path
                       + pseudoParent.hash
                       ;
-                    return self.resolveCompiled (pseudoParent, level.$ref, function (err, resolved) {
+                    return self.resolveCompiled (path, pseudoParent, level.$ref, function (err, resolved) {
                         if (err) return callback (err);
                         keys = [];
                         var allKeys = Object.keys (level);
@@ -615,7 +660,7 @@ JSContext.prototype.compile = function (parent, id, schema, callback, replacemen
         }
 
 
-        compileLevel ('#', schema, function (err, compiledSchema) {
+        compileLevel (mount, schema, function (err, compiledSchema) {
             if (err) return callback (err);
             callback (err, compiledSchema, metaschema);
         });

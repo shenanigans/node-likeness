@@ -1,0 +1,17 @@
+{
+    "type":     "object",
+    "properties":   {
+        "able":         {
+            "$ref":         "http://127.0.0.1:9999/refloopB.json#/localRef"
+        }
+    },
+    "additionalProperties": false,
+    "localRef": {
+        "type":      "object",
+        "properties": {
+            "able":     {
+                "$ref":     "http://127.0.0.1:9999/refloopB.json#/localRef"
+            }
+        }
+    }
+}

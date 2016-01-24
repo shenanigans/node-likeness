@@ -1,6 +1,5 @@
 
 var Likeness = require ('../../likeness');
-var TransformError = Likeness.errors.TransformError;
 var assert = require ('assert');
 var async = require ('async');
 
@@ -45,7 +44,8 @@ function testTransform (schema, source, target, goal) {
     try {
         var result = schema.transform (target, source);
     } catch (err) {
-        throw new Error ('transform failed - '+err);
+        throw err;
+        // throw new Error ('transform failed - '+err);
     }
 
     if (sourceStr != JSON.stringify (source))

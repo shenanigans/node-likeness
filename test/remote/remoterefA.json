@@ -1,0 +1,19 @@
+{
+    "type":     "object",
+    "properties":   {
+        "able":         {
+            "type":         "number"
+        },
+        "baker":        {
+            "$ref":         "#/localRef"
+        }
+    },
+    "localRef": {
+        "type":     "object",
+        "properties":   {
+            "able":     { "$ref": "http://127.0.0.1:9999/remoterefB.json#/localRef" }
+        }
+    },
+    "additionalProperties": false,
+    "required": [ "able", "baker" ]
+}

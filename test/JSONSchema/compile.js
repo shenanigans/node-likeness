@@ -12,19 +12,15 @@ function testCompile (id, doc, testDoc, callback) {
     var context = new likeness.helpers.JSContext();
     context.compile (id, doc, function (err, compiled, metaschema) {
         if (err) return callback (err);
-        // console.log (JSON.stringify (compiled));
         likeness.helpers.fromJSONSchema (metaschema, compiled, function (err, likeSchema) {
-            if (err) return callback (err);
-            // console.log (JSON.stringify (likeSchema));
+            if (err) return callback (err, compiled);
             var likeTest = new likeness (likeSchema);
             try {
                 likeTest.validate (testDoc);
             } catch (err) {
-                console.log (err);
-                console.log (compiled);
-                return callback (err instanceof Error ? err : new Error (err));
+                return callback (err instanceof Error ? err : new Error (err), compiled);
             }
-            callback();
+            callback (undefined, compiled);
         });
     });
 }
@@ -32,6 +28,7 @@ function testCompile (id, doc, testDoc, callback) {
 describe ("compile", function(){
 
     it ("compiles local references", function (done) {
+
         testCompile (
             {
                 definitions:{
@@ -75,6 +72,7 @@ describe ("compile", function(){
             },
             done
         );
+
     });
 
     describe ("recursive references", function(){
@@ -299,12 +297,127 @@ describe ("compile", function(){
 
     });
 
-    it ("compiles remote references");
+    it ("compiles remote references", function (done) {
 
-    it ("compiles remote references to recursive schemata");
+        testCompile (
+            {
+                properties: {
+                    able:       {
+                        $ref:       'http://127.0.0.1:9999/simple.json'
+                    }
+                },
+                required:   [ 'able' ]
+            },
+            {
+                able:   {
+                    able:   4,
+                    baker:  'four'
+                }
+            },
+            done
+        );
 
-    it ("detects local reference loops");
+    });
 
-    it ("detects remote reference loops");
+    it ("compiles remote local references", function (done) {
+
+        testCompile (
+            {
+                type:       "object",
+                properties: {
+                    able:       { $ref:'http://127.0.0.1:9999/localref.json' }
+                }
+            },
+            {
+                able:       {
+                    able:       4,
+                    baker:      {
+                        able:       'four'
+                    }
+                }
+            },
+            done
+        );
+
+    });
+
+    it ("compiles sequential remote references", function (done) {
+
+        testCompile (
+            {
+                properties: {
+                    able:       { $ref:'http://127.0.0.1:9999/remoterefA.json' }
+                }
+            },
+            {
+                able:   {
+                    able:   4,
+                    baker:  {
+                        able:   {
+                            able:   "four"
+                        }
+                    }
+                }
+            },
+            done
+        );
+
+    });
+
+    it ("compiles remote references to recursive schemata", function (done) {
+
+        testCompile (
+            {
+                properties: {
+                    able:       { $ref:'http://127.0.0.1:9999/remote/recursive.json' }
+                },
+                additionalProperties:   false
+            },
+            {
+                able:       {
+                    able:       4,
+                    baker:      {
+                        able:       5,
+                        baker:      {
+                            able:       6
+                        }
+                    }
+                }
+            },
+            done
+        );
+
+    });
+
+    it ("compiles remote reference loop", function (done) {
+
+        testCompile (
+            {
+                properties: {
+                    start:      {
+                        $ref:       'http://127.0.0.1:9999/refloopA.json'
+                    }
+                },
+                required:   [ 'start' ]
+            },
+            {
+                start:      {
+                    able:       {
+                        baker:      {
+                            charlie:    {
+                                able:       {
+                                    baker:      {
+                                        charlie:    { }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            done
+        );
+
+    });
 
 });
