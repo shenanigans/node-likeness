@@ -214,7 +214,7 @@ var likeMakeBudgetReport = new likeness ({
     monthlyAverages: {
         '.default':     {},
         income:         {
-            '.mean:         true
+            '.mean':     true
             '.fill':        {
                 '.fill':        [
                     'income/paycheques',
